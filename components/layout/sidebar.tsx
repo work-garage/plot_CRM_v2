@@ -30,19 +30,18 @@ export function Sidebar({ open, onClose, items }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "flex fixed top-0 left-0 z-50 flex-col w-64 h-full text-white transition-transform duration-200 ease-in-out bg-zinc-900 lg:translate-x-0 lg:static lg:z-auto",
+          "flex fixed top-0 left-0 z-50 flex-col w-64 h-full text-white transition-transform duration-200 ease-in-out bg-zinc-950 border-r border-zinc-900 lg:translate-x-0 lg:static lg:z-auto",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
         {/* Logo */}
-        <div className="flex justify-between items-center px-6 py-5 border-b border-zinc-800">
+        <div className="flex justify-between items-center px-6 py-5 border-b border-zinc-900/50">
           <Link href="/dashboard" className="flex gap-3 items-center">
-            <div className="flex justify-center items-center w-9 h-9 bg-white rounded-lg">
-              <Building2 className="w-5 h-5 text-zinc-900" />
+            <div className="flex justify-center items-center w-9 h-9 bg-primary shadow-sm shadow-primary/30 rounded-xl">
+              <Building2 className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <p className="text-base font-bold leading-none">S-INFRA</p>
-              <p className="text-[11px] text-zinc-400 mt-0.5">Plot CRM</p>
+              <p className="text-base font-bold tracking-tight leading-none text-zinc-50">PLOT CRM</p>
             </div>
           </Link>
           <Button
@@ -68,10 +67,10 @@ export function Sidebar({ open, onClose, items }: SidebarProps) {
                 href={item.href}
                 onClick={onClose}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   isActive
-                    ? "bg-white/10 text-white"
-                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                    ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                    : "text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800/50"
                 )}
               >
                 <item.icon className="w-5 h-5 shrink-0" />

@@ -81,7 +81,7 @@ export default function LoginPage() {
 						<Building2 className="h-8 w-8 text-white dark:text-zinc-900" />
 					</div>
 					<div>
-						<CardTitle className="text-2xl font-bold">S-INFRA</CardTitle>
+						<CardTitle className="text-2xl font-bold">PLOT CRM</CardTitle>
 						<CardDescription className="text-sm mt-1">
 							Estate Management + CRM
 						</CardDescription>

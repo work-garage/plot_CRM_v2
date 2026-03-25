@@ -30,14 +30,14 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const sizeStyles = {
       default: "h-9 sm:h-10 px-3 sm:px-4 py-1.5 sm:py-2",
       sm: "h-8 sm:h-9 rounded-md px-2.5 sm:px-3",
-      lg: "h-10 sm:h-11 rounded-md px-6 sm:px-8",
-      icon: "h-9 w-9 sm:h-10 sm:w-10",
+      lg: "h-10 sm:h-11 rounded-lg px-6 sm:px-8",
+      icon: "h-9 w-9 sm:h-10 sm:w-10 rounded-lg",
     }
 
     return (
       <Comp
         className={cn(
-          "inline-flex items-center justify-center whitespace-nowrap rounded-md text-xs sm:text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+          "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-xs sm:text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
           variantStyles[variant],
           sizeStyles[size],
           className

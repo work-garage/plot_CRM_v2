@@ -23,7 +23,7 @@ import { Calendar, Building2, User, PhoneCall, Trophy, XCircle, Activity, CheckS
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-type Tab = "active" | "tasks" | "pipeline" | "won" | "lost";
+type Tab = "active" | "tasks" | "won" | "lost";
 
 const LEAD_STATUS_COLOR: Record<string, string> = {
 	"New Lead": "bg-blue-50 text-blue-700 border-blue-200",
@@ -48,7 +48,7 @@ export function EnquiriesClient({
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const queryTab = searchParams.get("tab") as Tab;
-	const activeTab = ["active", "tasks", "pipeline", "won", "lost"].includes(queryTab) ? queryTab : "active";
+	const activeTab = ["active", "tasks", "won", "lost"].includes(queryTab) ? queryTab : "active";
 
 	const setActiveTab = (t: Tab) => {
 		const current = new URLSearchParams(Array.from(searchParams.entries()));
@@ -64,7 +64,6 @@ export function EnquiriesClient({
 	const tabCounts = useMemo(() => ({
 		active: activeLeads.length,
 		tasks: activeLeads.length,
-		pipeline: activeLeads.length,
 		won: initialEnquiries.filter(e => e.lead_status === "Closed Won").length,
 		lost: initialEnquiries.filter(e => e.lead_status === "Closed Lost").length,
 	}), [initialEnquiries, activeLeads]);
@@ -73,7 +72,7 @@ export function EnquiriesClient({
 		const q = query.trim().toLowerCase();
 		return initialEnquiries.filter((e) => {
 			// Tab filter
-			if (["active", "tasks", "pipeline"].includes(activeTab) && (e.lead_status === "Closed Won" || e.lead_status === "Closed Lost")) return false;
+			if (["active", "tasks"].includes(activeTab) && (e.lead_status === "Closed Won" || e.lead_status === "Closed Lost")) return false;
 			if (activeTab === "won" && e.lead_status !== "Closed Won") return false;
 			if (activeTab === "lost" && e.lead_status !== "Closed Lost") return false;
 
@@ -86,7 +85,6 @@ export function EnquiriesClient({
 	const tabs: { id: Tab; label: string; icon: any; count: number; color: string }[] = [
 		{ id: "active", label: "Active Leads", icon: GitBranch, count: tabCounts.active, color: "text-blue-600 border-blue-500" },
 		{ id: "tasks", label: "Task Completion", icon: CheckSquare, count: tabCounts.tasks, color: "text-orange-600 border-orange-500" },
-		{ id: "pipeline", label: "Lead Status", icon: TrendingUp, count: tabCounts.pipeline, color: "text-purple-600 border-purple-500" },
 		{ id: "won", label: "Closed Won", icon: Trophy, count: tabCounts.won, color: "text-green-600 border-green-500" },
 		{ id: "lost", label: "Closed Lost", icon: XCircle, count: tabCounts.lost, color: "text-red-600 border-red-500" },
 	];
@@ -109,23 +107,23 @@ export function EnquiriesClient({
 			/>
 
 			{/* Tabs */}
-			<div className="flex gap-0 border-b border-zinc-200">
+			<div className="flex flex-wrap gap-2 pb-4">
 				{tabs.map((t) => (
 					<button
 						key={t.id}
 						onClick={() => setActiveTab(t.id)}
 						className={cn(
-							"flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-b-2 transition-colors",
+							"flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all border",
 							activeTab === t.id
-								? `${t.color} bg-white`
-								: "border-transparent text-zinc-500 hover:text-zinc-800"
+								? "bg-primary/5 border-primary/20 text-primary shadow-[0_2px_8px_-3px_rgba(6,81,237,0.15)]"
+								: "bg-card border-border text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900"
 						)}
 					>
 						<t.icon className="h-4 w-4" />
 						{t.label}
 						<span className={cn(
-							"ml-1 rounded-full px-2 py-0.5 text-xs font-bold",
-							activeTab === t.id ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600"
+							"ml-1.5 rounded-full px-2 py-0.5 text-xs font-bold",
+							activeTab === t.id ? "bg-primary text-primary-foreground" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
 						)}>
 							{t.count}
 						</span>
@@ -188,45 +186,6 @@ export function EnquiriesClient({
 							);
 						}
 
-						if (activeTab === "pipeline") {
-							const stages = ["New Lead", "Contacted", "Follow-up", "Site Visit Scheduled", "Site Visit Done", "Negotiation"];
-							return (
-								<div className="flex flex-col">
-									{stages.map((stage) => {
-										const STAGE_COLORS: Record<string, string> = {
-											"New Lead": "bg-blue-50 border-blue-100 text-blue-800",
-											"Contacted": "bg-sky-50 border-sky-100 text-sky-800",
-											"Follow-up": "bg-yellow-50 border-yellow-100 text-yellow-800",
-											"Site Visit Scheduled": "bg-orange-50 border-orange-100 text-orange-800",
-											"Site Visit Done": "bg-purple-50 border-purple-100 text-purple-800",
-											"Negotiation": "bg-pink-50 border-pink-100 text-pink-800",
-										};
-										const stageLeads = filtered.filter((e) => e.lead_status === stage);
-										if (stageLeads.length === 0) return null;
-
-										return (
-											<div key={stage}>
-												<div className={cn("px-4 py-2 border-y font-semibold flex items-center gap-2", STAGE_COLORS[stage])}>
-													{stage} ({stageLeads.length})
-												</div>
-												<EnquiryTableRows enquiries={stageLeads} onEdit={setEditEnquiry} query={query} tab={activeTab} />
-											</div>
-										);
-									})}
-									{filtered.filter(e => !stages.includes(e.lead_status)).length > 0 && (
-										<div>
-											<div className="bg-zinc-100 px-4 py-2 border-y font-semibold text-zinc-800 flex items-center gap-2">
-												Other ({filtered.filter(e => !stages.includes(e.lead_status)).length})
-											</div>
-											<EnquiryTableRows enquiries={filtered.filter(e => !stages.includes(e.lead_status))} onEdit={setEditEnquiry} query={query} tab={activeTab} />
-										</div>
-									)}
-									{filtered.length === 0 && (
-										<EnquiryTableRows enquiries={[]} onEdit={setEditEnquiry} query={query} tab={activeTab} />
-									)}
-								</div>
-							);
-						}
 
 						return <EnquiryTableRows enquiries={filtered} onEdit={setEditEnquiry} query={query} tab={activeTab} />;
 					})()}

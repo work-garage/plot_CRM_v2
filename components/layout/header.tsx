@@ -87,7 +87,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-white px-4 lg:px-6 dark:bg-zinc-950 dark:border-zinc-800">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur-md px-4 lg:px-6">
       <Button
         variant="ghost"
         size="icon"
@@ -107,7 +107,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                 variant="ghost"
                 size="sm"
                 type="button"
-                className="h-9 border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/40"
+                className="h-9 border shadow-sm bg-background hover:bg-zinc-50 dark:hover:bg-zinc-900"
               >
                 <User className="h-4 w-4 text-zinc-500 mr-2" />
                 <span className="max-w-[140px] truncate text-zinc-800 dark:text-zinc-100">
