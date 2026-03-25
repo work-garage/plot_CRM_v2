@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	:root {
+		/* lighter teal derived from #18747c */
+		--background: 184 45% 92%;
+		--background-2: 184 45% 86%;
+		--background-3: 184 55% 78%;
+		--foreground: 184 25% 12%;
+		--card: 0 0% 100%;
+		--card-foreground: 184 25% 12%;
+		--popover: 0 0% 100%;
+		--popover-foreground: 184 25% 12%;
+		/* Brand primary — teal aligned with app background */
+		--primary: 184 42% 32%;
+		--primary-foreground: 0 0% 98%;
+		--secondary: 184 28% 90%;
+		--secondary-foreground: 184 35% 22%;
+		--muted: 184 20% 93%;
+		--muted-foreground: 184 12% 40%;
+		--accent: 184 35% 88%;
+		--accent-foreground: 184 40% 18%;
+		--destructive: 0 72% 50%;
+		--destructive-foreground: 0 0% 98%;
+		--border: 184 18% 82%;
+		--input: 184 18% 85%;
+		--ring: 184 42% 38%;
+		--radius: 0.5rem;
+	}
+
+	.dark {
+		--background: 240 10% 3.9%;
+		--foreground: 0 0% 98%;
+		--card: 240 10% 3.9%;
+		--card-foreground: 0 0% 98%;
+		--popover: 240 10% 3.9%;
+		--popover-foreground: 0 0% 98%;
+		--primary: 184 38% 42%;
+		--primary-foreground: 0 0% 98%;
+		--secondary: 240 3.7% 15.9%;
+		--secondary-foreground: 0 0% 98%;
+		--muted: 240 3.7% 15.9%;
+		--muted-foreground: 240 5% 64.9%;
+		--accent: 240 3.7% 15.9%;
+		--accent-foreground: 0 0% 98%;
+		--destructive: 0 62.8% 30.6%;
+		--destructive-foreground: 0 0% 98%;
+		--border: 240 3.7% 15.9%;
+		--input: 240 3.7% 15.9%;
+		--ring: 240 4.9% 83.9%;
+	}
+}
+
+@layer base {
+	* {
+		@apply border-border;
+	}
+	body {
+		@apply text-foreground font-sans antialiased;
+		background-color: hsl(var(--background));
+		background-image:
+			radial-gradient(1200px 600px at 20% 10%, hsl(var(--background-3) / 0.55), transparent 60%),
+			radial-gradient(900px 500px at 90% 20%, hsl(var(--background-2) / 0.65), transparent 55%),
+			linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background-2)) 55%, hsl(var(--background)) 100%);
+	}
+}

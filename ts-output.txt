@@ -1,0 +1,3 @@
+components/enquiries/enquiry-temp-customers-modal.tsx(6,79): error TS2724: '"@/app/actions/enquiries"' has no exported member named 'EnquiryTempCustomerForModal'. Did you mean 'getEnquiryTempCustomersForModal'?
+components/enquiries/enquiry-upgrade-modal.tsx(20,68): error TS2724: '"@/app/actions/enquiries"' has no exported member named 'EnquiryCustomerRow'. Did you mean 'getEnquiryCustomers'?
+components/enquiries/enquiry-upgrade-modal.tsx(62,72): error TS2353: Object literal may only specify known properties, and 'customerId' does not exist in type '{ enquiryId: string; }'.
