@@ -10,6 +10,10 @@ import {
   Bell,
   BarChart3,
   ClipboardList,
+  PhoneCall,
+  CheckSquare,
+  TrendingUp,
+  GitBranch,
   type LucideIcon,
 } from "lucide-react";
 
@@ -25,7 +29,10 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
   { label: "Advisors", href: "/advisors", icon: UserCheck },
   { label: "Advisor Analytics", href: "/advisors/analytics", icon: BarChart3 },
   { label: "Customers", href: "/customers", icon: Users },
-  { label: "Enquiries", href: "/enquiries", icon: Handshake },
+  { label: "Enquiries", href: "/enquiries", icon: PhoneCall },
+  { label: "Follow-up Tracking", href: "/enquiries?tab=active", icon: GitBranch },
+  { label: "Task Completion", href: "/enquiries?tab=tasks", icon: CheckSquare },
+  { label: "Lead Status", href: "/enquiries?tab=pipeline", icon: TrendingUp },
   { label: "Sales", href: "/sales", icon: Handshake },
   { label: "Payments", href: "/payments", icon: CreditCard },
   { label: "Commissions", href: "/commissions", icon: Banknote },
@@ -37,6 +44,10 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
 
 export const ADVISOR_NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/advisor", icon: LayoutDashboard },
+  { label: "Enquiries", href: "/advisor/enquiries", icon: PhoneCall },
+  { label: "Follow-up Tracking", href: "/advisor/enquiries?tab=active", icon: GitBranch },
+  { label: "Task Completion", href: "/advisor/enquiries?tab=tasks", icon: CheckSquare },
+  { label: "Lead Status", href: "/advisor/enquiries?tab=pipeline", icon: TrendingUp },
   { label: "Customers", href: "/advisor/customers", icon: Users },
   { label: "Sales", href: "/advisor/sales", icon: Handshake },
   { label: "Payments", href: "/advisor/payments", icon: CreditCard },

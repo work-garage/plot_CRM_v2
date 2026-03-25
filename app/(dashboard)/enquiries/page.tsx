@@ -14,17 +14,28 @@ export default async function EnquiriesPage() {
 
 	if (!user) redirect("/login");
 
-	// Match RLS defaults: missing role = admin (only advisors are explicitly tagged).
 	const role = (user.user_metadata as any)?.role ?? "admin";
-	if (role === "advisor") redirect("/advisor");
+	if (role === "advisor") redirect("/advisor/enquiries");
 
 	const [enquiries, projects] = await Promise.all([
 		getEnquiryCustomers(),
 		getProjects(),
 	]);
 
+	// Fetch all active advisors for the admin to assign
+	const { data: advisorRows } = await supabase
+		.from("advisors")
+		.select("id, name")
+		.eq("is_active", true)
+		.order("name");
+
+	const advisors = (advisorRows ?? []).map((a: any) => ({ id: a.id, name: a.name }));
+
 	return (
-		<EnquiriesClient initialEnquiries={enquiries} projects={projects} />
+		<EnquiriesClient
+			initialEnquiries={enquiries}
+			projects={projects}
+			advisors={advisors}
+		/>
 	);
 }
-

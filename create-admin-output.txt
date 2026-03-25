@@ -1,0 +1,5 @@
+[38;5;142m[dotenvx@1.55.1] injecting env (5) from .env[39m
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+User already exists in auth.users: 528d8458-ce26-491b-bb40-21d90c8fe455
+Updated password.
+Error: column "role" of relation "advisors" does not exist

@@ -147,13 +147,11 @@ export async function getPayments(filters?: PaymentsFilter) {
       customers(name, phone),
       plot_sales(
         id,
-        receipt_path,
         remaining_amount,
         monthly_emi,
         emi_day,
         token_date,
         agreement_date,
-        followup_date,
         plots(plot_number, projects(name))
       )
     `

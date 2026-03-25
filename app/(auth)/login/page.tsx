@@ -98,7 +98,7 @@ export default function LoginPage() {
 										<FormLabel>Email or Phone</FormLabel>
 										<FormControl>
 											<Input
-												placeholder="admin@mginfra.com or 9876543210"
+												placeholder="admin@crm.com or 9876543210"
 												type="text"
 												autoComplete="username"
 												{...field}

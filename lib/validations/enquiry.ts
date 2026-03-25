@@ -18,11 +18,6 @@ export const enquiryStatusSchema = z.enum([
 	"Negotiation",
 	"Closed Won",
 	"Closed Lost",
-	"new",
-	"contacted",
-	"follow_up",
-	"joined",
-	"not_interested",
 ]);
 
 export const enquiryCustomerSchema = z.object({
@@ -37,6 +32,8 @@ export const enquiryCustomerSchema = z.object({
 		.refine((v) => v === "" || /^\d{10}$/.test(v), {
 			message: "Alternate phone must be exactly 10 digits",
 		}),
+	email: z.string().email("Invalid email").optional().nullable().or(z.literal("")),
+	city: z.string().optional().default(""),
 	address: z.string().optional().default(""),
 	birth_date: z.string().optional().nullable(),
 	project_id: z.string().uuid("Invalid project").optional().nullable(),
@@ -46,8 +43,9 @@ export const enquiryCustomerSchema = z.object({
 	follow_up_date: z.string().optional().nullable(),
 	interested_plan: z.string().optional().nullable(),
 	enquiry_status: enquiryStatusSchema.optional().default("New Lead"),
+	advisor_id: z.string().uuid().optional().nullable(),
 
-	// New CRM Fields
+	// CRM Fields
 	property_type: z.enum(["Flats", "Plots", "Villas"]).optional().nullable(),
 	segment: z.enum(["Luxury", "Mid-range", "Affordable"]).optional().nullable(),
 	budget_min: z.number().optional().nullable(),
@@ -58,4 +56,3 @@ export const enquiryCustomerSchema = z.object({
 });
 
 export type EnquiryCustomerFormValues = z.infer<typeof enquiryCustomerSchema>;
-

@@ -19,131 +19,162 @@ import { PageHeader } from "@/components/shared/page-header";
 import type { EnquiryRow } from "@/app/actions/enquiries";
 import { EnquiryCreateModal } from "@/components/enquiries/enquiry-create-modal";
 import { EnquiryEditModal } from "@/components/enquiries/enquiry-edit-modal";
-import { Calendar, Building2, User } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Calendar, Building2, User, PhoneCall, Trophy, XCircle, Activity, CheckSquare, TrendingUp, GitBranch } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { cn } from "@/lib/utils";
+
+type Tab = "active" | "tasks" | "pipeline" | "won" | "lost";
+
+const LEAD_STATUS_COLOR: Record<string, string> = {
+	"New Lead": "bg-blue-50 text-blue-700 border-blue-200",
+	"Contacted": "bg-sky-50 text-sky-700 border-sky-200",
+	"Follow-up": "bg-yellow-50 text-yellow-700 border-yellow-200",
+	"Site Visit Scheduled": "bg-orange-50 text-orange-700 border-orange-200",
+	"Site Visit Done": "bg-purple-50 text-purple-700 border-purple-200",
+	"Negotiation": "bg-pink-50 text-pink-700 border-pink-200",
+	"Closed Won": "bg-green-50 text-green-700 border-green-200",
+	"Closed Lost": "bg-red-50 text-red-700 border-red-200",
+};
 
 export function EnquiriesClient({
 	initialEnquiries,
 	projects,
+	advisors = [],
 }: {
 	initialEnquiries: EnquiryRow[];
 	projects: Array<{ id: string; name: string }>;
+	advisors?: Array<{ id: string; name: string }>;
 }) {
 	const router = useRouter();
+	const searchParams = useSearchParams();
+	const queryTab = searchParams.get("tab") as Tab;
+	const activeTab = ["active", "tasks", "pipeline", "won", "lost"].includes(queryTab) ? queryTab : "active";
+
+	const setActiveTab = (t: Tab) => {
+		const current = new URLSearchParams(Array.from(searchParams.entries()));
+		current.set("tab", t);
+		router.push(`?${current.toString()}`);
+	};
+
 	const [query, setQuery] = useState("");
-	const [categoryFilter, setCategoryFilter] = useState("all");
-	const [projectFilter, setProjectFilter] = useState("all");
-	const [statusFilter, setStatusFilter] = useState("all");
 	const [createOpen, setCreateOpen] = useState(false);
 	const [editEnquiry, setEditEnquiry] = useState<EnquiryRow | null>(null);
+
+	const activeLeads = initialEnquiries.filter(e => e.lead_status !== "Closed Won" && e.lead_status !== "Closed Lost");
+	const tabCounts = useMemo(() => ({
+		active: activeLeads.length,
+		tasks: activeLeads.length,
+		pipeline: activeLeads.length,
+		won: initialEnquiries.filter(e => e.lead_status === "Closed Won").length,
+		lost: initialEnquiries.filter(e => e.lead_status === "Closed Lost").length,
+	}), [initialEnquiries, activeLeads]);
 
 	const filtered = useMemo(() => {
 		const q = query.trim().toLowerCase();
 		return initialEnquiries.filter((e) => {
-			if (categoryFilter !== "all" && e.category !== categoryFilter) return false;
-			if (projectFilter !== "all" && (e.project_id ?? "none") !== projectFilter) return false;
-			if (statusFilter === "active" && !e.is_active) return false;
-			if (statusFilter === "upgraded" && e.is_active) return false;
+			// Tab filter
+			if (["active", "tasks", "pipeline"].includes(activeTab) && (e.lead_status === "Closed Won" || e.lead_status === "Closed Lost")) return false;
+			if (activeTab === "won" && e.lead_status !== "Closed Won") return false;
+			if (activeTab === "lost" && e.lead_status !== "Closed Lost") return false;
+
 			if (!q) return true;
-			const hay = `${e.name} ${e.phone} ${e.category} ${e.project_name ?? ""}`.toLowerCase();
+			const hay = `${e.name} ${e.phone} ${e.city ?? ""} ${e.email ?? ""} ${e.property_type ?? ""} ${e.project_name ?? ""} ${e.lead_source ?? ""} ${e.advisor_name ?? ""}`.toLowerCase();
 			return hay.includes(q);
 		});
-	}, [initialEnquiries, query, categoryFilter, projectFilter, statusFilter]);
+	}, [initialEnquiries, query, activeTab]);
 
-	const categories = useMemo(
-		() => Array.from(new Set(initialEnquiries.map((e) => e.category))).sort(),
-		[initialEnquiries]
-	);
+	const tabs: { id: Tab; label: string; icon: any; count: number; color: string }[] = [
+		{ id: "active", label: "Active Leads", icon: GitBranch, count: tabCounts.active, color: "text-blue-600 border-blue-500" },
+		{ id: "tasks", label: "Task Completion", icon: CheckSquare, count: tabCounts.tasks, color: "text-orange-600 border-orange-500" },
+		{ id: "pipeline", label: "Lead Status", icon: TrendingUp, count: tabCounts.pipeline, color: "text-purple-600 border-purple-500" },
+		{ id: "won", label: "Closed Won", icon: Trophy, count: tabCounts.won, color: "text-green-600 border-green-500" },
+		{ id: "lost", label: "Closed Lost", icon: XCircle, count: tabCounts.lost, color: "text-red-600 border-red-500" },
+	];
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-5">
 			<PageHeader
 				title="Enquiries"
-				subtitle={`${initialEnquiries.length} active enquiries`}
+				subtitle={`${initialEnquiries.length} total leads`}
 				action={
-					<div className="flex gap-2 flex-wrap">
+					<div className="flex gap-2">
+						<Button size="sm" variant="outline" onClick={() => { toast.success("Refreshing..."); router.refresh(); }}>
+							Refresh
+						</Button>
 						<Button size="sm" onClick={() => setCreateOpen(true)}>
-							New Enquiry
+							+ New Enquiry
 						</Button>
 					</div>
 				}
 			/>
 
-			<div className="flex flex-wrap gap-3 items-center justify-between">
-				<div className="flex-1">
-					<Input
-						value={query}
-						placeholder="Search by name, phone, category..."
-						onChange={(e) => setQuery(e.target.value)}
-					/>
-				</div>
-				<div className="flex items-center gap-2">
-					<select
-						className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm"
-						value={categoryFilter}
-						onChange={(e) => setCategoryFilter(e.target.value)}
+			{/* Tabs */}
+			<div className="flex gap-0 border-b border-zinc-200">
+				{tabs.map((t) => (
+					<button
+						key={t.id}
+						onClick={() => setActiveTab(t.id)}
+						className={cn(
+							"flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-b-2 transition-colors",
+							activeTab === t.id
+								? `${t.color} bg-white`
+								: "border-transparent text-zinc-500 hover:text-zinc-800"
+						)}
 					>
-						<option value="all">All categories</option>
-						{categories.map((c) => (
-							<option key={c} value={c}>
-								{c}
-							</option>
-						))}
-					</select>
-					<select
-						className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm"
-						value={projectFilter}
-						onChange={(e) => setProjectFilter(e.target.value)}
-					>
-						<option value="all">All projects</option>
-						<option value="none">No project</option>
-						{projects.map((p) => (
-							<option key={p.id} value={p.id}>
-								{p.name}
-							</option>
-						))}
-					</select>
-					<select
-						className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm"
-						value={statusFilter}
-						onChange={(e) => setStatusFilter(e.target.value)}
-					>
-						<option value="all">All status</option>
-						<option value="active">Active</option>
-						<option value="upgraded">Upgraded/Closed</option>
-					</select>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => {
-							toast.success("Refreshing...");
-							router.refresh();
-						}}
-					>
-						Refresh
-					</Button>
-				</div>
+						<t.icon className="h-4 w-4" />
+						{t.label}
+						<span className={cn(
+							"ml-1 rounded-full px-2 py-0.5 text-xs font-bold",
+							activeTab === t.id ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600"
+						)}>
+							{t.count}
+						</span>
+					</button>
+				))}
 			</div>
+
+			{/* Search */}
+			<div className="flex gap-2 items-center">
+				<Input
+					value={query}
+					placeholder="Search by name, phone, city, property type, advisor..."
+					onChange={(e) => setQuery(e.target.value)}
+					className="max-w-sm"
+				/>
+			</div>
+
+			{activeTab === "lost" && (
+				<div className="flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-4 py-2 text-sm text-red-700">
+					<XCircle className="h-4 w-4" />
+					These leads were marked as lost. Their data is preserved for future reference and re-engagement.
+				</div>
+			)}
+			{activeTab === "won" && (
+				<div className="flex items-center gap-2 rounded-lg border border-green-100 bg-green-50 px-4 py-2 text-sm text-green-700">
+					<Trophy className="h-4 w-4" />
+					These leads converted. They are also visible in the Customers section with full purchase details.
+				</div>
+			)}
 
 			<Card>
 				<CardContent className="p-0 overflow-x-auto">
 					<Table>
 						<TableHeader>
-								<TableRow>
-									<TableHead>Customer</TableHead>
-									<TableHead>Reqs / Source</TableHead>
-									<TableHead>Pipeline Status</TableHead>
-									<TableHead>Budget</TableHead>
-									<TableHead>Follow-up</TableHead>
-									<TableHead>Project</TableHead>
-									<TableHead>Date</TableHead>
-								</TableRow>
+							<TableRow className="bg-zinc-50">
+								<TableHead className="font-semibold">Customer</TableHead>
+								<TableHead className="font-semibold">Requirements</TableHead>
+								<TableHead className="font-semibold">Pipeline Status</TableHead>
+								<TableHead className="font-semibold">Budget</TableHead>
+								<TableHead className="font-semibold">Advisor</TableHead>
+								<TableHead className="font-semibold">Project</TableHead>
+								<TableHead className="font-semibold">Date</TableHead>
+							</TableRow>
 						</TableHeader>
 						<TableBody>
 							{filtered.length === 0 ? (
 								<TableRow>
-									<TableCell colSpan={7} className="text-center text-zinc-500 py-10">
-										No enquiries found.
+									<TableCell colSpan={7} className="text-center text-zinc-500 py-12">
+										{query ? "No results match your search." : activeTab === "active" ? "No active leads yet." : activeTab === "won" ? "No closed won leads yet." : "No lost leads."}
 									</TableCell>
 								</TableRow>
 							) : (
@@ -154,50 +185,58 @@ export function EnquiriesClient({
 										onClick={() => setEditEnquiry(enq)}
 									>
 										<TableCell>
-											<div className="min-w-0">
+											<div className="min-w-[140px]">
 												<div className="flex items-center gap-2">
-													<User className="h-4 w-4 text-zinc-400" />
+													<User className="h-4 w-4 text-zinc-400 shrink-0" />
 													<div className="font-semibold text-sm truncate">{enq.name}</div>
 												</div>
 												<div className="text-xs text-zinc-500 font-mono mt-0.5">{enq.phone}</div>
+												{enq.city && <div className="text-xs text-zinc-400 mt-0.5">{enq.city}</div>}
+												{enq.email && <div className="text-xs text-zinc-400 truncate max-w-[160px]">{enq.email}</div>}
 											</div>
 										</TableCell>
 										<TableCell>
-											<div className="flex flex-col gap-1">
-												<div className="flex items-center gap-2">
-													<Badge variant="secondary">{enq.property_type || enq.category || "General"}</Badge>
-													<span className="text-xs text-zinc-500">{enq.lead_source || "Unknown"}</span>
+											<div className="flex flex-col gap-1 min-w-[150px]">
+												<div className="flex items-center gap-1.5 flex-wrap">
+													{enq.property_type && <Badge variant="secondary" className="text-xs">{enq.property_type}</Badge>}
+													{enq.segment && <Badge variant="outline" className="text-xs">{enq.segment}</Badge>}
 												</div>
-												<div className="text-xs text-zinc-600 truncate max-w-[200px]">
-													{enq.bhk_size ? `${enq.bhk_size} ` : ""} 
-													{enq.preferred_location ? `in ${enq.preferred_location}` : (enq.details ?? "—")}
+												<div className="text-xs text-zinc-500">
+													{enq.bhk_size ? `${enq.bhk_size}` : ""}
+													{enq.preferred_location ? ` · ${enq.preferred_location}` : ""}
 												</div>
+												{enq.lead_source && <div className="text-[11px] text-zinc-400">via {enq.lead_source}</div>}
 											</div>
 										</TableCell>
 										<TableCell>
-											<Badge variant="outline" className="font-normal capitalize border-zinc-300">
-												{enq.lead_status || enq.enquiry_status || "New Lead"}
-											</Badge>
-										</TableCell>
-										<TableCell className="text-sm text-zinc-700">
-											{enq.budget_min || enq.budget_max 
-												? `₹${((enq.budget_min||0)/100000).toFixed(1)}L - ₹${((enq.budget_max||0)/100000).toFixed(1)}L` 
-												: (enq.interested_plan ?? "—")}
+											<div className={cn(
+												"inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
+												LEAD_STATUS_COLOR[enq.lead_status] || "bg-zinc-50 text-zinc-600 border-zinc-200"
+											)}>
+												{enq.lead_status || "New Lead"}
+											</div>
 										</TableCell>
 										<TableCell className="text-sm text-zinc-700 whitespace-nowrap">
-											{enq.follow_up_date ? String(enq.follow_up_date).slice(0, 10) : "—"}
+											{enq.budget_min || enq.budget_max
+												? `₹${((enq.budget_min || 0) / 100000).toFixed(1)}L – ₹${((enq.budget_max || 0) / 100000).toFixed(1)}L`
+												: "—"}
+										</TableCell>
+										<TableCell>
+											<div className="text-sm text-zinc-700 min-w-[100px]">
+												{enq.advisor_name || "—"}
+											</div>
 										</TableCell>
 										<TableCell>
 											<div className="flex items-center gap-2">
-												<Building2 className="h-4 w-4 text-zinc-400" />
-												<span className="text-sm text-zinc-700 truncate max-w-[180px]">
+												<Building2 className="h-4 w-4 text-zinc-400 shrink-0" />
+												<span className="text-sm text-zinc-700 truncate max-w-[140px]">
 													{enq.project_name ?? "—"}
 												</span>
 											</div>
 										</TableCell>
 										<TableCell>
-											<div className="flex items-center gap-2 text-sm text-zinc-700">
-												<Calendar className="h-4 w-4 text-zinc-400" />
+											<div className="flex items-center gap-1 text-xs text-zinc-500">
+												<Calendar className="h-3.5 w-3.5 text-zinc-400" />
 												{String(enq.created_at).slice(0, 10)}
 											</div>
 										</TableCell>
@@ -213,17 +252,16 @@ export function EnquiriesClient({
 				open={createOpen}
 				onOpenChange={setCreateOpen}
 				projects={projects}
+				advisors={advisors}
 			/>
 
 			<EnquiryEditModal
 				open={editEnquiry != null}
-				onOpenChange={(o) => {
-					if (!o) setEditEnquiry(null);
-				}}
+				onOpenChange={(o) => { if (!o) setEditEnquiry(null); }}
 				enquiry={editEnquiry}
 				projects={projects}
+				advisors={advisors}
 			/>
 		</div>
 	);
 }
-
