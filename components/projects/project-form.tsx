@@ -37,6 +37,8 @@ interface ProjectFormProps {
 		total_plots_count: number;
 		layout_expense: number | null;
 		starting_plot_number?: number | null;
+		builder_name?: string | null;
+		segment?: string | null;
 		description: string | null;
 	};
 }
@@ -56,6 +58,8 @@ export function ProjectForm({ mode, initialData }: ProjectFormProps) {
 			location: initialData?.location ?? "",
 			total_plots_count: initialData?.total_plots_count ?? 0,
 			starting_plot_number: initialData?.starting_plot_number ?? 1,
+			builder_name: initialData?.builder_name ?? "",
+			segment: initialData?.segment ?? "",
 			description: initialData?.description ?? "",
 		},
 	});
@@ -272,6 +276,35 @@ export function ProjectForm({ mode, initialData }: ProjectFormProps) {
 													);
 												}}
 											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</div>
+
+						<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+							<FormField
+								control={form.control}
+								name="builder_name"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Builder Name</FormLabel>
+										<FormControl>
+											<Input placeholder="e.g. MG Infra" {...field} value={field.value ?? ""} />
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+							<FormField
+								control={form.control}
+								name="segment"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Segment</FormLabel>
+										<FormControl>
+											<Input placeholder="e.g. Luxury / Mid-range" {...field} value={field.value ?? ""} />
 										</FormControl>
 										<FormMessage />
 									</FormItem>

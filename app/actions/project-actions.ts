@@ -53,6 +53,8 @@ export async function createProject(
 			total_plots_count: parsed.data.total_plots_count,
 			layout_expense: 0,
 			starting_plot_number: parsed.data.starting_plot_number ?? 1,
+			builder_name: parsed.data.builder_name || null,
+			segment: parsed.data.segment || null,
 			description: parsed.data.description ?? "",
 		})
 		.select("*")
@@ -118,6 +120,8 @@ export async function updateProject(
 			location: parsed.data.location,
 			total_plots_count: parsed.data.total_plots_count,
 			starting_plot_number: parsed.data.starting_plot_number ?? 1,
+			builder_name: parsed.data.builder_name || null,
+			segment: parsed.data.segment || null,
 			description: parsed.data.description ?? "",
 			updated_at: new Date().toISOString(),
 		})

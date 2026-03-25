@@ -95,6 +95,7 @@ export async function createAdvisor(
 		.insert({
 			name: parsed.data.name,
 			code: parsed.data.code,
+			team: parsed.data.team || null,
 			phone: parsed.data.phone,
 			email: advisorEmail,
 			address: parsed.data.address || null,
@@ -177,6 +178,7 @@ export async function updateAdvisor(
 		.update({
 			name: parsed.data.name,
 			code: parsed.data.code,
+			team: parsed.data.team || null,
 			phone: parsed.data.phone,
 			// Always keep email populated for advisor login (auto-generate if blank).
 			email: parsed.data.email?.trim()

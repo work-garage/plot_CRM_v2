@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { User, Phone, MapPin, Pencil, UserCheck } from "lucide-react";
+import { User, Phone, MapPin, Pencil, UserCheck, Mail } from "lucide-react";
 import {
 	Card,
 	CardContent,
@@ -54,6 +54,18 @@ export function CustomerCard({ customer }: CustomerCardProps) {
 						<Phone className="h-3.5 w-3.5" />
 						<span>{customer.phone}</span>
 					</div>
+					{customer.email && (
+						<div className="flex items-center gap-2 text-sm text-zinc-600">
+							<Mail className="h-3.5 w-3.5" />
+							<span className="truncate">{customer.email}</span>
+						</div>
+					)}
+					{customer.city && (
+						<div className="flex items-center gap-2 text-sm text-zinc-600">
+							<MapPin className="h-3.5 w-3.5" />
+							<span className="truncate">{customer.city}</span>
+						</div>
+					)}
 
 					<div className="pt-2 border-t flex items-center justify-between">
 						<div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500 uppercase tracking-wider">

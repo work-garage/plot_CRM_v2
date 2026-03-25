@@ -42,6 +42,7 @@ export type EnquiryRow = {
 	budget_max: number | null;
 	bhk_size: string | null;
 	preferred_location: string | null;
+	task_status: "Completed" | "Pending";
 };
 
 export async function getEnquiryCustomers(): Promise<EnquiryRow[]> {
@@ -65,6 +66,9 @@ export async function getEnquiryCustomers(): Promise<EnquiryRow[]> {
 			advisors ( name ),
 			customer_project_interests (
 				project_id, projects ( name )
+			),
+			customer_follow_ups (
+				whatsapp_done, call_done, site_visit_done, follow_up_date
 			)
 		`)
 		.order("created_at", { ascending: false });
@@ -109,6 +113,14 @@ export async function getEnquiryCustomers(): Promise<EnquiryRow[]> {
 			budget_max: c.budget_max,
 			bhk_size: c.bhk_size,
 			preferred_location: c.preferred_location,
+			task_status: (() => {
+				if (!c.customer_follow_ups || c.customer_follow_ups.length === 0) return "Pending";
+				const sorted = [...c.customer_follow_ups].sort(
+					(a, b) => new Date(b.follow_up_date || 0).getTime() - new Date(a.follow_up_date || 0).getTime()
+				);
+				const latest = sorted[0];
+				return (latest.whatsapp_done && latest.call_done && latest.site_visit_done) ? "Completed" : "Pending";
+			})(),
 		};
 	}) as EnquiryRow[];
 }

@@ -3,6 +3,7 @@ import { z } from "zod";
 export const advisorSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   code: z.string().min(2, "Code is required"),
+  team: z.string().optional().default(""),
   phone: z
     .string()
     .regex(/^\d{10}$/, "Phone number must be exactly 10 digits"),

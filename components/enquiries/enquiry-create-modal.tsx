@@ -20,9 +20,8 @@ import {
 } from "@/components/ui";
 import type { EnquiryCustomerFormValues } from "@/lib/validations/enquiry";
 import { createEnquiryCustomer } from "@/app/actions/enquiries";
-import { Label } from "@/components/ui/label";
 
-const LEAD_SOURCE_OPTIONS = ["Facebook", "Broker", "Referral", "Website", "Other"] as const;
+const LEAD_SOURCE_OPTIONS = ["Facebook", "Broker", "Referral", "Website", "Assigned Executive/Advisor", "Other"] as const;
 const PROPERTY_TYPE_OPTIONS = ["Flats", "Plots", "Villas"] as const;
 const SEGMENT_OPTIONS = ["Luxury", "Mid-range", "Affordable"] as const;
 const LEAD_STATUS_OPTIONS = [

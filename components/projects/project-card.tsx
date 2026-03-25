@@ -26,6 +26,8 @@ interface ProjectCardProps {
 	location: string | null;
 	total_plots_count: number;
 	layout_expense: number | null;
+	builder_name?: string | null;
+	segment?: string | null;
 	plotCounts: PlotStatusCounts;
 }
 
@@ -54,6 +56,8 @@ export function ProjectCard({
 	location,
 	total_plots_count,
 	layout_expense,
+	builder_name,
+	segment,
 	plotCounts,
 }: ProjectCardProps) {
 	const router = useRouter();
@@ -68,6 +72,7 @@ export function ProjectCard({
 					<div className="flex items-start justify-between">
 						<div className="space-y-1 min-w-0">
 							<CardTitle className="text-lg truncate">{name}</CardTitle>
+							{builder_name && <p className="text-xs text-zinc-500 font-medium">{builder_name}</p>}
 							{location && (
 								<div className="flex items-center gap-1 text-sm text-zinc-500">
 									<MapPin className="h-3.5 w-3.5 shrink-0" />
@@ -118,6 +123,13 @@ export function ProjectCard({
 							<span className="text-xs text-zinc-400">No plots added yet</span>
 						)}
 					</div>
+
+					{/* Segment */}
+					{segment && (
+						<Badge variant="outline" className="text-zinc-600 bg-zinc-50 border-zinc-200">
+							{segment} Segment
+						</Badge>
+					)}
 
 					{/* Layout expense */}
 					{layout_expense && layout_expense > 0 ? (

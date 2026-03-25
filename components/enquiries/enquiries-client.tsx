@@ -158,93 +158,78 @@ export function EnquiriesClient({
 
 			<Card>
 				<CardContent className="p-0 overflow-x-auto">
-					<Table>
-						<TableHeader>
-							<TableRow className="bg-zinc-50">
-								<TableHead className="font-semibold">Customer</TableHead>
-								<TableHead className="font-semibold">Requirements</TableHead>
-								<TableHead className="font-semibold">Pipeline Status</TableHead>
-								<TableHead className="font-semibold">Budget</TableHead>
-								<TableHead className="font-semibold">Advisor</TableHead>
-								<TableHead className="font-semibold">Project</TableHead>
-								<TableHead className="font-semibold">Date</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{filtered.length === 0 ? (
-								<TableRow>
-									<TableCell colSpan={7} className="text-center text-zinc-500 py-12">
-										{query ? "No results match your search." : activeTab === "active" ? "No active leads yet." : activeTab === "won" ? "No closed won leads yet." : "No lost leads."}
-									</TableCell>
-								</TableRow>
-							) : (
-								filtered.map((enq) => (
-									<TableRow
-										key={enq.id}
-										className="hover:bg-zinc-50 cursor-pointer"
-										onClick={() => setEditEnquiry(enq)}
-									>
-										<TableCell>
-											<div className="min-w-[140px]">
-												<div className="flex items-center gap-2">
-													<User className="h-4 w-4 text-zinc-400 shrink-0" />
-													<div className="font-semibold text-sm truncate">{enq.name}</div>
+					{(() => {
+						if (activeTab === "tasks") {
+							const completed = filtered.filter((e) => e.task_status === "Completed");
+							const pending = filtered.filter((e) => e.task_status !== "Completed");
+
+							return (
+								<div className="flex flex-col">
+									{pending.length > 0 && (
+										<div>
+											<div className="bg-orange-50 px-4 py-2 border-b border-orange-100 font-semibold text-orange-800 flex items-center gap-2">
+												⚠️ Pending Tasks ({pending.length})
+											</div>
+											<EnquiryTableRows enquiries={pending} onEdit={setEditEnquiry} query={query} tab={activeTab} />
+										</div>
+									)}
+									{completed.length > 0 && (
+										<div>
+											<div className="bg-green-50 px-4 py-2 border-y border-green-100 font-semibold text-green-800 flex items-center gap-2">
+												✅ Completed Tasks ({completed.length})
+											</div>
+											<EnquiryTableRows enquiries={completed} onEdit={setEditEnquiry} query={query} tab={activeTab} />
+										</div>
+									)}
+									{pending.length === 0 && completed.length === 0 && (
+										<EnquiryTableRows enquiries={[]} onEdit={setEditEnquiry} query={query} tab={activeTab} />
+									)}
+								</div>
+							);
+						}
+
+						if (activeTab === "pipeline") {
+							const stages = ["New Lead", "Contacted", "Follow-up", "Site Visit Scheduled", "Site Visit Done", "Negotiation"];
+							return (
+								<div className="flex flex-col">
+									{stages.map((stage) => {
+										const STAGE_COLORS: Record<string, string> = {
+											"New Lead": "bg-blue-50 border-blue-100 text-blue-800",
+											"Contacted": "bg-sky-50 border-sky-100 text-sky-800",
+											"Follow-up": "bg-yellow-50 border-yellow-100 text-yellow-800",
+											"Site Visit Scheduled": "bg-orange-50 border-orange-100 text-orange-800",
+											"Site Visit Done": "bg-purple-50 border-purple-100 text-purple-800",
+											"Negotiation": "bg-pink-50 border-pink-100 text-pink-800",
+										};
+										const stageLeads = filtered.filter((e) => e.lead_status === stage);
+										if (stageLeads.length === 0) return null;
+
+										return (
+											<div key={stage}>
+												<div className={cn("px-4 py-2 border-y font-semibold flex items-center gap-2", STAGE_COLORS[stage])}>
+													{stage} ({stageLeads.length})
 												</div>
-												<div className="text-xs text-zinc-500 font-mono mt-0.5">{enq.phone}</div>
-												{enq.city && <div className="text-xs text-zinc-400 mt-0.5">{enq.city}</div>}
-												{enq.email && <div className="text-xs text-zinc-400 truncate max-w-[160px]">{enq.email}</div>}
+												<EnquiryTableRows enquiries={stageLeads} onEdit={setEditEnquiry} query={query} tab={activeTab} />
 											</div>
-										</TableCell>
-										<TableCell>
-											<div className="flex flex-col gap-1 min-w-[150px]">
-												<div className="flex items-center gap-1.5 flex-wrap">
-													{enq.property_type && <Badge variant="secondary" className="text-xs">{enq.property_type}</Badge>}
-													{enq.segment && <Badge variant="outline" className="text-xs">{enq.segment}</Badge>}
-												</div>
-												<div className="text-xs text-zinc-500">
-													{enq.bhk_size ? `${enq.bhk_size}` : ""}
-													{enq.preferred_location ? ` · ${enq.preferred_location}` : ""}
-												</div>
-												{enq.lead_source && <div className="text-[11px] text-zinc-400">via {enq.lead_source}</div>}
+										);
+									})}
+									{filtered.filter(e => !stages.includes(e.lead_status)).length > 0 && (
+										<div>
+											<div className="bg-zinc-100 px-4 py-2 border-y font-semibold text-zinc-800 flex items-center gap-2">
+												Other ({filtered.filter(e => !stages.includes(e.lead_status)).length})
 											</div>
-										</TableCell>
-										<TableCell>
-											<div className={cn(
-												"inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
-												LEAD_STATUS_COLOR[enq.lead_status] || "bg-zinc-50 text-zinc-600 border-zinc-200"
-											)}>
-												{enq.lead_status || "New Lead"}
-											</div>
-										</TableCell>
-										<TableCell className="text-sm text-zinc-700 whitespace-nowrap">
-											{enq.budget_min || enq.budget_max
-												? `₹${((enq.budget_min || 0) / 100000).toFixed(1)}L – ₹${((enq.budget_max || 0) / 100000).toFixed(1)}L`
-												: "—"}
-										</TableCell>
-										<TableCell>
-											<div className="text-sm text-zinc-700 min-w-[100px]">
-												{enq.advisor_name || "—"}
-											</div>
-										</TableCell>
-										<TableCell>
-											<div className="flex items-center gap-2">
-												<Building2 className="h-4 w-4 text-zinc-400 shrink-0" />
-												<span className="text-sm text-zinc-700 truncate max-w-[140px]">
-													{enq.project_name ?? "—"}
-												</span>
-											</div>
-										</TableCell>
-										<TableCell>
-											<div className="flex items-center gap-1 text-xs text-zinc-500">
-												<Calendar className="h-3.5 w-3.5 text-zinc-400" />
-												{String(enq.created_at).slice(0, 10)}
-											</div>
-										</TableCell>
-									</TableRow>
-								))
-							)}
-						</TableBody>
-					</Table>
+											<EnquiryTableRows enquiries={filtered.filter(e => !stages.includes(e.lead_status))} onEdit={setEditEnquiry} query={query} tab={activeTab} />
+										</div>
+									)}
+									{filtered.length === 0 && (
+										<EnquiryTableRows enquiries={[]} onEdit={setEditEnquiry} query={query} tab={activeTab} />
+									)}
+								</div>
+							);
+						}
+
+						return <EnquiryTableRows enquiries={filtered} onEdit={setEditEnquiry} query={query} tab={activeTab} />;
+					})()}
 				</CardContent>
 			</Card>
 
@@ -263,5 +248,105 @@ export function EnquiriesClient({
 				advisors={advisors}
 			/>
 		</div>
+	);
+}
+
+function EnquiryTableRows({ enquiries, onEdit, query, tab }: { enquiries: EnquiryRow[]; onEdit: (e: EnquiryRow) => void; query: string; tab: string }) {
+	return (
+		<Table>
+			<TableHeader>
+				<TableRow className="bg-zinc-50 border-t-0">
+					<TableHead className="font-semibold">Customer</TableHead>
+					<TableHead className="font-semibold">Requirements</TableHead>
+					<TableHead className="font-semibold">Status</TableHead>
+					<TableHead className="font-semibold">Budget</TableHead>
+					<TableHead className="font-semibold">Advisor</TableHead>
+					<TableHead className="font-semibold">Project</TableHead>
+					<TableHead className="font-semibold">Date</TableHead>
+				</TableRow>
+			</TableHeader>
+			<TableBody>
+				{enquiries.length === 0 ? (
+					<TableRow>
+						<TableCell colSpan={7} className="text-center text-zinc-500 py-12">
+							{query ? "No results match your search." : tab === "active" ? "No active leads yet." : tab === "won" ? "No closed won leads yet." : tab === "lost" ? "No lost leads." : "No leads in this category."}
+						</TableCell>
+					</TableRow>
+				) : (
+					enquiries.map((enq) => (
+						<TableRow
+							key={enq.id}
+							className="hover:bg-zinc-50 cursor-pointer border-t"
+							onClick={() => onEdit(enq)}
+						>
+							<TableCell>
+								<div className="min-w-[140px]">
+									<div className="flex items-center gap-2">
+										<User className="h-4 w-4 text-zinc-400 shrink-0" />
+										<div className="font-semibold text-sm truncate">{enq.name}</div>
+									</div>
+									<div className="text-xs text-zinc-500 font-mono mt-0.5">{enq.phone}</div>
+									{enq.city && <div className="text-xs text-zinc-400 mt-0.5">{enq.city}</div>}
+									{enq.email && <div className="text-xs text-zinc-400 truncate max-w-[160px]">{enq.email}</div>}
+								</div>
+							</TableCell>
+							<TableCell>
+								<div className="flex flex-col gap-1 min-w-[150px]">
+									<div className="flex items-center gap-1.5 flex-wrap">
+										{enq.property_type && <Badge variant="secondary" className="text-xs">{enq.property_type}</Badge>}
+										{enq.segment && <Badge variant="outline" className="text-xs">{enq.segment}</Badge>}
+									</div>
+									<div className="text-xs text-zinc-500">
+										{enq.bhk_size ? `${enq.bhk_size}` : ""}
+										{enq.preferred_location ? ` · ${enq.preferred_location}` : ""}
+									</div>
+									{enq.lead_source && <div className="text-[11px] text-zinc-400">via {enq.lead_source}</div>}
+								</div>
+							</TableCell>
+							<TableCell>
+								<div className={cn(
+									"inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
+									LEAD_STATUS_COLOR[enq.lead_status] || "bg-zinc-50 text-zinc-600 border-zinc-200"
+								)}>
+									{enq.lead_status || "New Lead"}
+								</div>
+								{tab === "tasks" && (
+									<div className={cn(
+										"inline-flex ml-2 items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
+										enq.task_status === "Completed" ? "bg-green-50 text-green-700 border-green-200" : "bg-orange-50 text-orange-700 border-orange-200"
+									)}>
+										{enq.task_status}
+									</div>
+								)}
+							</TableCell>
+							<TableCell className="text-sm text-zinc-700 whitespace-nowrap">
+								{enq.budget_min || enq.budget_max
+									? `₹${((enq.budget_min || 0) / 100000).toFixed(1)}L – ₹${((enq.budget_max || 0) / 100000).toFixed(1)}L`
+									: "—"}
+							</TableCell>
+							<TableCell>
+								<div className="text-sm text-zinc-700 min-w-[100px]">
+									{enq.advisor_name || "—"}
+								</div>
+							</TableCell>
+							<TableCell>
+								<div className="flex items-center gap-2">
+									<Building2 className="h-4 w-4 text-zinc-400 shrink-0" />
+									<span className="text-sm text-zinc-700 truncate max-w-[140px]">
+										{enq.project_name ?? "—"}
+									</span>
+								</div>
+							</TableCell>
+							<TableCell>
+								<div className="flex items-center gap-1 text-xs text-zinc-500">
+									<Calendar className="h-3.5 w-3.5 text-zinc-400" />
+									{String(enq.created_at).slice(0, 10)}
+								</div>
+							</TableCell>
+						</TableRow>
+					))
+				)}
+			</TableBody>
+		</Table>
 	);
 }

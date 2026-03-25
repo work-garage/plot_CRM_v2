@@ -13,6 +13,8 @@ export const customerSchema = z.object({
       message: "Alternate phone must be exactly 10 digits",
     }),
   address: z.string().optional().default(""),
+  email: z.string().email().optional().nullable().or(z.literal("")),
+  city: z.string().optional().default(""),
   birth_date: z.string().optional().nullable(),
   advisor_id: z.preprocess(
     (v) => (v === "none" || v === "" ? null : v),

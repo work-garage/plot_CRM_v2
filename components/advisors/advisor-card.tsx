@@ -57,6 +57,14 @@ export function AdvisorCard({ advisor }: AdvisorCardProps) {
 							<span className="truncate">{advisor.address}</span>
 						</div>
 					)}
+					{advisor.team && (
+						<div className="pt-2 border-t flex items-center justify-between">
+							<div className="text-xs font-semibold text-zinc-500 uppercase">
+								Team
+							</div>
+							<span className="text-sm font-medium text-zinc-700">{advisor.team}</span>
+						</div>
+					)}
 					<div className="pt-2 border-t flex items-center justify-between">
 						<div className="text-xs font-semibold text-zinc-500">
 							PROJECT-WISE COMMISSION

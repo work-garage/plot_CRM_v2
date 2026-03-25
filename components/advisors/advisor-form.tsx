@@ -53,6 +53,7 @@ export function AdvisorForm({
 		defaultValues: {
 			name: initialData?.name ?? "",
 			code: initialData?.code ?? "",
+			team: initialData?.team ?? "",
 			phone: initialData?.phone ?? "",
 			email: initialData?.email ?? "",
 			address: initialData?.address ?? "",
@@ -209,6 +210,19 @@ export function AdvisorForm({
 										<FormLabel>Advisor Code *</FormLabel>
 										<FormControl>
 											<Input placeholder="e.g. MG101" {...field} />
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+							<FormField
+								control={form.control}
+								name="team"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Team</FormLabel>
+										<FormControl>
+											<Input placeholder="e.g. Alpha Team" {...field} value={field.value ?? ""} />
 										</FormControl>
 										<FormMessage />
 									</FormItem>

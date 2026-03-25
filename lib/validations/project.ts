@@ -8,6 +8,8 @@ export const projectSchema = z.object({
 		.int("Must be a whole number")
 		.positive("Must be greater than 0"),
 	starting_plot_number: z.number().int().min(1, "Must be at least 1").default(1),
+	builder_name: z.string().optional().default(""),
+	segment: z.string().optional().default(""),
 	description: z.string().default(""),
 });
 

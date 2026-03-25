@@ -54,6 +54,8 @@ export function CustomerForm({
       name: initialData?.name ?? "",
       phone: initialData?.phone ?? "",
       alternate_phone: initialData?.alternate_phone ?? "",
+      email: initialData?.email ?? "",
+      city: initialData?.city ?? "",
       address: initialData?.address ?? "",
       birth_date: initialData?.birth_date ?? "",
       advisor_id: initialData?.advisor_id ?? null,
@@ -213,6 +215,28 @@ export function CustomerForm({
                         onChange={(e) => field.onChange(e.target.value.replace(/\D/g, "").slice(0, 10))}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email ID</FormLabel>
+                    <FormControl><Input type="email" placeholder="customer@email.com" {...field} value={field.value ?? ""} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="city"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>City / Location</FormLabel>
+                    <FormControl><Input placeholder="e.g. Nagpur" {...field} value={field.value ?? ""} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
