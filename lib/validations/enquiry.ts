@@ -52,7 +52,7 @@ export const enquiryCustomerSchema = z.object({
 	budget_max: z.number().optional().nullable(),
 	preferred_location: z.string().optional().default(""),
 	bhk_size: z.string().optional().default(""),
-	lead_source: z.enum(["Facebook", "Broker", "Referral", "Website", "Other"]).optional().nullable(),
+	lead_source: z.enum(["Facebook", "Referral", "Website", "Assigned Advisor", "Other"]).optional().nullable(),
 });
 
 export type EnquiryCustomerFormValues = z.infer<typeof enquiryCustomerSchema>;

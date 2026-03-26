@@ -1,0 +1,25 @@
+
+> mg-infra-crm@1.0.0 build
+> next build
+
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 17.3s
+  Running TypeScript ...
+Failed to compile.
+
+./app/(advisor)/layout.tsx:20:13
+Type error: Type '{ onMenuClick: () => void; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'onMenuClick' does not exist on type 'IntrinsicAttributes'.
+
+[0m [90m 18 |[39m
+ [90m 19 |[39m 			[33m<[39m[33mdiv[39m className[33m=[39m[32m"flex flex-1 flex-col overflow-hidden"[39m[33m>[39m
+[31m[1m>[22m[39m[90m 20 |[39m 				[33m<[39m[33mHeader[39m onMenuClick[33m=[39m{() [33m=>[39m setSidebarOpen([36mtrue[39m)} [33m/[39m[33m>[39m
+ [90m    |[39m 				        [31m[1m^[22m[39m
+ [90m 21 |[39m 				[33m<[39m[33mmain[39m className[33m=[39m[32m"flex-1 overflow-y-auto p-4 lg:p-6"[39m[33m>[39m{children}[33m<[39m[33m/[39m[33mmain[39m[33m>[39m
+ [90m 22 |[39m 			[33m<[39m[33m/[39m[33mdiv[39m[33m>[39m
+ [90m 23 |[39m 		[33m<[39m[33m/[39m[33mdiv[39m[33m>[39m[0m
+Next.js build worker exited with code: 1 and signal: null

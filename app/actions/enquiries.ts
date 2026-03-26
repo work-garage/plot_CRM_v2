@@ -53,7 +53,6 @@ export async function getEnquiryCustomers(): Promise<EnquiryRow[]> {
 	if (!user) return [];
 
 	const role = (user?.user_metadata as any)?.role;
-	const advisorId = (user?.user_metadata as any)?.advisor_id;
 
 	// Fetch ALL leads (active and inactive) — tabs filter on the frontend
 	let query = supabase
@@ -73,10 +72,23 @@ export async function getEnquiryCustomers(): Promise<EnquiryRow[]> {
 		`)
 		.order("created_at", { ascending: false });
 
-	// Advisor can only see their own leads
-	if (role === "advisor" && advisorId) {
-		query = query.eq("advisor_id", advisorId);
+	// Advisor: only see their own leads (submitted by them OR admin-assigned to them)
+	// Both cases share the same advisor_id column — no distinction needed.
+	if (role === "advisor") {
+		// Always look up from DB — never trust JWT metadata which can be stale
+		const { data: adv } = await supabase
+			.from("advisors")
+			.select("id")
+			.eq("auth_user_id", user.id)
+			.single();
+		if (adv?.id) {
+			query = query.eq("advisor_id", adv.id);
+		} else {
+			// Advisor record not found — return empty to prevent data leakage
+			return [];
+		}
 	}
+	// Admin: no filter — returns ALL enquiries
 
 	const { data, error } = await query;
 	if (error) throw new Error(error.message);
@@ -140,11 +152,19 @@ export async function createEnquiryCustomer(
 	if (!user) return { success: false, error: "Unauthorized" };
 
 	const role = (user?.user_metadata as any)?.role;
-	let advisorId = (user?.user_metadata as any)?.advisor_id;
+	let advisorId: string | null = null;
 
-	// Admin can explicitly assign an advisor_id from the form
-	if (role !== "advisor" && parsed.data.advisor_id) {
-		advisorId = parsed.data.advisor_id;
+	if (role === "advisor") {
+		// Always look up from DB — never trust JWT metadata which can be stale
+		const { data: adv } = await supabase
+			.from("advisors")
+			.select("id")
+			.eq("auth_user_id", user.id)
+			.single();
+		advisorId = adv?.id ?? null;
+	} else {
+		// Admin can explicitly assign any advisor from the form
+		advisorId = parsed.data.advisor_id ?? null;
 	}
 
 	const { data: existing, error: findErr } = await supabase

@@ -15,10 +15,10 @@ import {
 import { SelfProfileModal } from "./self-profile-modal";
 
 interface HeaderProps {
-  onMenuClick: () => void;
+  onMenuClick?: () => void;
 }
 
-export function Header({ onMenuClick }: HeaderProps) {
+export function Header({ onMenuClick = () => {} }: HeaderProps) {
   const router = useRouter();
   const [userInfo, setUserInfo] = useState<{
     name?: string | null;

@@ -139,6 +139,12 @@ export async function getPayments(filters?: PaymentsFilter) {
 	const supabase = await createClient();
 	if (!supabase) return [];
 
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	const role = (user?.user_metadata as any)?.role;
+
 	let q = supabase
 		.from("payments")
 		.select(
@@ -147,6 +153,7 @@ export async function getPayments(filters?: PaymentsFilter) {
       customers(name, phone),
       plot_sales(
         id,
+        advisor_id,
         remaining_amount,
         monthly_emi,
         emi_day,
@@ -157,6 +164,24 @@ export async function getPayments(filters?: PaymentsFilter) {
     `
 		)
 		.order("payment_date", { ascending: false });
+
+	// Advisor: only see payments from their own sales
+	if (role === "advisor") {
+		// Always look up from DB — never trust JWT metadata which can be stale
+		const { data: adv } = await supabase
+			.from("advisors")
+			.select("id")
+			.eq("auth_user_id", user!.id)
+			.single();
+		if (adv?.id) {
+			// Filter: payments where the linked sale belongs to this advisor
+			// We do this via the nested plot_sales.advisor_id filter
+			q = (q as any).eq("plot_sales.advisor_id", adv.id);
+		} else {
+			return [];
+		}
+	}
+	// Admin: no filter — returns all payments
 
 	const from = filters?.from?.trim();
 	const to = filters?.to?.trim();
@@ -171,6 +196,7 @@ export async function getPayments(filters?: PaymentsFilter) {
 	const { data, error } = await q;
 
 	if (error) throw new Error(error.message);
+
 	const rows = data || [];
 	const saleIds = [
 		...new Set(

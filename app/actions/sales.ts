@@ -107,7 +107,20 @@ export async function createSale(
 		.insert({
 			plot_id: parsed.data.plot_id,
 			customer_id: parsed.data.customer_id,
-			advisor_id: soldByAdmin ? null : (parsed.data.advisor_id ?? null),
+		advisor_id: soldByAdmin ? null : (
+			// If advisor_id explicitly provided, use it.
+			// Otherwise, inherit from the customer (auto-pipeline).
+			parsed.data.advisor_id ??
+			(await (async () => {
+				if (!parsed.data.customer_id) return null;
+				const { data: cust } = await supabase
+					.from("customers")
+					.select("advisor_id")
+					.eq("id", parsed.data.customer_id)
+					.single();
+				return cust?.advisor_id ?? null;
+			})())
+		),
 			sold_by_admin: soldByAdmin,
 			sale_phase: parsed.data.sale_phase,
 			token_date: tokenDateToStore,
@@ -222,7 +235,13 @@ export async function getSales() {
 	const supabase = await createClient();
 	if (!supabase) return [];
 
-	const { data, error } = await supabase
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	const role = (user?.user_metadata as any)?.role;
+
+	let q = supabase
 		.from("plot_sales")
 		.select(
 			`
@@ -234,6 +253,22 @@ export async function getSales() {
 		)
 		.order("created_at", { ascending: false });
 
+	if (role === "advisor") {
+		// Always look up from DB — never trust JWT metadata which can be stale
+		const { data: adv } = await supabase
+			.from("advisors")
+			.select("id")
+			.eq("auth_user_id", user!.id)
+			.single();
+		if (adv?.id) {
+			q = q.eq("advisor_id", adv.id);
+		} else {
+			return [];
+		}
+	}
+	// Admin: no filter — returns all sales
+
+	const { data, error } = await q;
 	if (error) throw new Error(error.message);
 	const rows = data || [];
 	const saleIds = rows.map((s: { id: string }) => s.id);
@@ -276,9 +311,6 @@ export async function getCustomerPlotSales(customerId: string) {
 	if (userErr || !user) return [];
 
 	const role = (user.user_metadata as any)?.role;
-	const advisorId = (user.user_metadata as any)?.advisor_id as
-		| string
-		| undefined;
 
 	// Advisors should only see sales for their own customers.
 	let query = supabase
@@ -299,12 +331,21 @@ export async function getCustomerPlotSales(customerId: string) {
 		.eq("customer_id", customerId)
 		.order("created_at", { ascending: false });
 
-	if (role === "advisor" && advisorId) {
-		query = query.eq("advisor_id", advisorId);
+	if (role === "advisor") {
+		// Always look up from DB — never trust JWT metadata which can be stale
+		const { data: adv } = await supabase
+			.from("advisors")
+			.select("id")
+			.eq("auth_user_id", user.id)
+			.single();
+		if (adv?.id) {
+			query = query.eq("advisor_id", adv.id);
+		} else {
+			return [];
+		}
 	}
 
 	const { data, error } = await query;
-
 	if (error) throw new Error(error.message);
 	return data || [];
 }

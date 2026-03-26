@@ -1,0 +1,76 @@
+
+> mg-infra-crm@1.0.0 build
+> next build
+
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 20.5s
+  Running TypeScript ...
+  Collecting page data using 11 workers ...
+  Generating static pages using 11 workers (0/41) ...
+  Generating static pages using 11 workers (10/41) 
+  Generating static pages using 11 workers (20/41) 
+  Generating static pages using 11 workers (30/41) 
+✓ Generating static pages using 11 workers (41/41) in 1848.8ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /advisor
+├ ƒ /advisor/commissions
+├ ƒ /advisor/customers
+├ ƒ /advisor/customers/[id]
+├ ƒ /advisor/customers/[id]/edit
+├ ƒ /advisor/customers/new
+├ ƒ /advisor/messaging
+├ ƒ /advisor/messaging/new
+├ ƒ /advisor/payments
+├ ƒ /advisor/sales
+├ ƒ /advisors
+├ ƒ /advisors/[id]
+├ ƒ /advisors/[id]/edit
+├ ƒ /advisors/analytics
+├ ○ /advisors/new
+├ ƒ /api/hr/attendance
+├ ƒ /api/hr/attendance/upload
+├ ƒ /api/hr/employees
+├ ƒ /api/hr/payouts
+├ ƒ /api/hr/payouts/generate
+├ ƒ /api/hr/payouts/pay
+├ ƒ /commissions
+├ ƒ /customers
+├ ƒ /customers/[id]
+├ ƒ /customers/[id]/edit
+├ ƒ /customers/new
+├ ƒ /dashboard
+├ ƒ /enquiries
+├ ƒ /expenses
+├ ƒ /expenses/new
+├ ○ /hr
+├ ƒ /hr/attendance
+├ ƒ /hr/employees
+├ ƒ /hr/payouts
+├ ○ /login
+├ ƒ /messaging
+├ ƒ /messaging/new
+├ ƒ /payments
+├ ƒ /payments/new
+├ ƒ /projects
+├ ƒ /projects/[id]
+├ ƒ /projects/[id]/plots
+├ ƒ /projects/[id]/plots/new
+├ ○ /projects/new
+├ ƒ /reports
+├ ƒ /sales
+└ ƒ /sales/new
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

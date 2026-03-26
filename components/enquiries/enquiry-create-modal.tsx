@@ -21,7 +21,7 @@ import {
 import type { EnquiryCustomerFormValues } from "@/lib/validations/enquiry";
 import { createEnquiryCustomer } from "@/app/actions/enquiries";
 
-const LEAD_SOURCE_OPTIONS = ["Facebook", "Broker", "Referral", "Website", "Assigned Executive/Advisor", "Other"] as const;
+const LEAD_SOURCE_OPTIONS = ["Facebook", "Referral", "Website", "Assigned Advisor", "Other"] as const;
 const PROPERTY_TYPE_OPTIONS = ["Flats", "Plots", "Villas"] as const;
 const SEGMENT_OPTIONS = ["Luxury", "Mid-range", "Affordable"] as const;
 const LEAD_STATUS_OPTIONS = [
@@ -74,6 +74,11 @@ export function EnquiryCreateModal({
 	async function handleSubmit() {
 		if (!form.name.trim() || !form.phone.trim()) {
 			toast.error("Name and phone are required.");
+			return;
+		}
+		// If lead source is "Assigned Advisor" and admin has advisor list, require advisor selection
+		if (form.lead_source === "Assigned Advisor" && advisors.length > 0 && !form.advisor_id) {
+			toast.error("Please select an advisor — this lead is marked as 'Assigned Advisor'.");
 			return;
 		}
 		setSaving(true);
@@ -208,14 +213,26 @@ export function EnquiryCreateModal({
 							</FieldGroup>
 							{advisors.length > 0 && (
 								<FieldGroup>
-									<FormLabel>Assigned Advisor</FormLabel>
+									<FormLabel>
+										Assigned Advisor
+										{form.lead_source === "Assigned Advisor" && (
+											<span className="ml-1 text-blue-600 text-xs font-bold">* Required</span>
+										)}
+									</FormLabel>
 									<Select value={form.advisor_id || "none"} onValueChange={v => set("advisor_id", v === "none" ? null : v)}>
-										<SelectTrigger><SelectValue placeholder="Select advisor..." /></SelectTrigger>
+										<SelectTrigger
+											className={form.lead_source === "Assigned Advisor" ? "ring-2 ring-blue-500 border-blue-400" : ""}
+										>
+											<SelectValue placeholder="Select advisor..." />
+										</SelectTrigger>
 										<SelectContent>
 											<SelectItem value="none">Unassigned</SelectItem>
 											{advisors.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
 										</SelectContent>
 									</Select>
+									{form.lead_source === "Assigned Advisor" && !form.advisor_id && (
+										<p className="text-xs text-blue-600 mt-1">Select the advisor who brought this lead.</p>
+									)}
 								</FieldGroup>
 							)}
 							<FieldGroup>

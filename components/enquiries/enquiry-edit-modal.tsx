@@ -23,7 +23,7 @@ import type { EnquiryRow } from "@/app/actions/enquiries";
 import { updateEnquiryCustomer, upgradeEnquiryToCustomer, markLeadAsLost } from "@/app/actions/enquiries";
 import { CustomerFollowUps } from "./customer-follow-ups";
 
-const LEAD_SOURCE_OPTIONS = ["Facebook", "Broker", "Referral", "Website", "Assigned Executive/Advisor", "Other"] as const;
+const LEAD_SOURCE_OPTIONS = ["Facebook", "Referral", "Website", "Assigned Advisor", "Other"] as const;
 const PROPERTY_TYPE_OPTIONS = ["Flats", "Plots", "Villas"] as const;
 const SEGMENT_OPTIONS = ["Luxury", "Mid-range", "Affordable"] as const;
 const LEAD_STATUS_OPTIONS = [
@@ -288,14 +288,26 @@ export function EnquiryEditModal({
 								</FieldGroup>
 								{advisors.length > 0 && (
 									<FieldGroup>
-										<FormLabel>Assigned Advisor</FormLabel>
+										<FormLabel>
+											Assigned Advisor
+											{form.lead_source === "Assigned Advisor" && (
+												<span className="ml-1 text-blue-600 text-xs font-bold">* Required</span>
+											)}
+										</FormLabel>
 										<Select value={form.advisor_id || "none"} onValueChange={v => set("advisor_id", v === "none" ? null : v)}>
-											<SelectTrigger><SelectValue /></SelectTrigger>
+											<SelectTrigger
+												className={form.lead_source === "Assigned Advisor" ? "ring-2 ring-blue-500 border-blue-400" : ""}
+											>
+												<SelectValue />
+											</SelectTrigger>
 											<SelectContent>
 												<SelectItem value="none">Unassigned</SelectItem>
 												{advisors.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
 											</SelectContent>
 										</Select>
+										{form.lead_source === "Assigned Advisor" && !form.advisor_id && (
+											<p className="text-xs text-blue-600 mt-1">Select the advisor who brought this lead.</p>
+										)}
 									</FieldGroup>
 								)}
 								<FieldGroup>
