@@ -8,6 +8,7 @@ import { getCustomerDocuments } from "@/app/actions/customer-documents";
 import { getCustomerPlotSales } from "@/app/actions/sales";
 import { CustomerDocuments } from "@/components/customers/customer-documents";
 import { formatCurrency } from "@/lib/utils/formatters";
+import { getModuleSettings } from "@/app/actions/settings";
 
 export default async function CustomerDetailPage({
   params,
@@ -15,11 +16,14 @@ export default async function CustomerDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const customer = await getCustomerById(id);
-  if (!customer) notFound();
+  const [customer, docs, plotSales, modules] = await Promise.all([
+    getCustomerById(id),
+    getCustomerDocuments(id),
+    getCustomerPlotSales(id),
+    getModuleSettings(),
+  ]);
 
-  const docs = await getCustomerDocuments(id);
-  const plotSales = await getCustomerPlotSales(id);
+  if (!customer) notFound();
 
   return (
     <div className="space-y-6">
@@ -65,47 +69,55 @@ export default async function CustomerDetailPage({
               </div>
             ) : null}
 
-            <div className="pt-2 space-y-2">
-              <div className="text-xs font-semibold border-b pb-2 uppercase tracking-wider text-zinc-500">
-                Transactions (Plots Bought)
-              </div>
-
-              {plotSales.length === 0 ? (
-                <div className="text-sm text-zinc-500">No sales recorded for this customer.</div>
-              ) : (
-                <div className="space-y-2">
-                  {plotSales.map((sale: any) => (
-                    <div
-                      key={sale.id}
-                      className="rounded-md border border-zinc-200 bg-white p-3 space-y-1"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-zinc-900 truncate">
-                            {sale.plots?.plot_number ?? "—"} • {sale.plots?.projects?.name ?? "—"}
-                          </div>
-                          <div className="text-[11px] text-zinc-500">
-                            Phase: {sale.sale_phase ?? "—"}
-                          </div>
-                        </div>
-                        <Badge variant="secondary" className="text-[10px] shrink-0">
-                          {sale.amount_paid >= (sale.total_sale_amount ?? 0) ? "Paid" : "Due"}
-                        </Badge>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-3 text-[12px]">
-                        <span className="text-zinc-500">Paid</span>
-                        <span className="font-semibold text-green-700">{formatCurrency(sale.amount_paid ?? 0)}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 text-[12px]">
-                        <span className="text-zinc-500">Remaining</span>
-                        <span className="font-semibold text-red-700">{formatCurrency(sale.remaining_amount ?? 0)}</span>
-                      </div>
-                    </div>
-                  ))}
+            {modules.sales && (
+              <div className="pt-2 space-y-2">
+                <div className="text-xs font-semibold border-b pb-2 uppercase tracking-wider text-zinc-500">
+                  Transactions (Plots Bought)
                 </div>
-              )}
-            </div>
+
+                {plotSales.length === 0 ? (
+                  <div className="text-sm text-zinc-500">No sales recorded for this customer.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {plotSales.map((sale: any) => (
+                      <div
+                        key={sale.id}
+                        className="rounded-md border border-zinc-200 bg-white p-3 space-y-1"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-zinc-900 truncate">
+                              {sale.plots?.plot_number ?? "—"} • {sale.plots?.projects?.name ?? "—"}
+                            </div>
+                            <div className="text-[11px] text-zinc-500">
+                              Phase: {sale.sale_phase ?? "—"}
+                            </div>
+                          </div>
+                          {modules.payments && (
+                            <Badge variant="secondary" className="text-[10px] shrink-0">
+                              {sale.amount_paid >= (sale.total_sale_amount ?? 0) ? "Paid" : "Due"}
+                            </Badge>
+                          )}
+                        </div>
+
+                        {modules.payments && (
+                          <>
+                            <div className="flex items-center justify-between gap-3 text-[12px]">
+                              <span className="text-zinc-500">Paid</span>
+                              <span className="font-semibold text-green-700">{formatCurrency(sale.amount_paid ?? 0)}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3 text-[12px]">
+                              <span className="text-zinc-500">Remaining</span>
+                              <span className="font-semibold text-red-700">{formatCurrency(sale.remaining_amount ?? 0)}</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 

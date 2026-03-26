@@ -192,6 +192,9 @@ export type ProjectWithStats = {
 		token_date: string | null;
 		sale_phase: string;
 	}>;
+	enquiryCount: number;
+	wonCount: number;
+	lostCount: number;
 };
 
 export async function getProjectWithStats(
@@ -273,7 +276,33 @@ export async function getProjectWithStats(
 		}
 	}
 
-	return { project, plotCounts, totalRevenue, recentSales };
+	// Fetch lead stats for this project
+	const { count: enquiryCount } = await supabase
+		.from("customers")
+		.select("*", { count: "exact", head: true })
+		.eq("project_id", id);
+
+	const { count: wonCount } = await supabase
+		.from("customers")
+		.select("*", { count: "exact", head: true })
+		.eq("project_id", id)
+		.eq("lead_status", "🎉 Closed Won");
+
+	const { count: lostCount } = await supabase
+		.from("customers")
+		.select("*", { count: "exact", head: true })
+		.eq("project_id", id)
+		.eq("lead_status", "❌ Closed Lost");
+
+	return {
+		project,
+		plotCounts,
+		totalRevenue,
+		recentSales,
+		enquiryCount: enquiryCount || 0,
+		wonCount: wonCount || 0,
+		lostCount: lostCount || 0,
+	};
 }
 
 export async function getProjectsWithPlotCounts() {

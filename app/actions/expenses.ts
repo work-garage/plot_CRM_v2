@@ -54,7 +54,7 @@ export async function getExpenses() {
 
 	const { data, error } = await supabase
 		.from("office_expenses")
-		.select("*, projects(id, name)")
+		.select("*, projects!project_id(id, name)")
 		.order("expense_date", { ascending: false });
 
 	if (error) throw new Error(error.message);

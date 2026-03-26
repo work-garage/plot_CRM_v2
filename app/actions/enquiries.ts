@@ -32,6 +32,7 @@ export type EnquiryRow = {
 	enquiry_status: string;
 	advisor_id: string | null;
 	advisor_name: string | null;
+	source_advisor_id: string | null;
 
 	// CRM Fields
 	lead_status: string;
@@ -60,10 +61,10 @@ export async function getEnquiryCustomers(): Promise<EnquiryRow[]> {
 		.from("customers")
 		.select(`
 			id, name, phone, alternate_phone, email, city, address, birth_date,
-			is_active, created_at, notes, advisor_id,
+			is_active, created_at, notes, advisor_id, source_advisor_id,
 			lead_status, lead_source, property_type, segment,
 			budget_min, budget_max, bhk_size, preferred_location,
-			advisors ( name ),
+			advisors!advisor_id ( name ),
 			customer_project_interests (
 				project_id, projects ( name )
 			),
@@ -112,10 +113,10 @@ export async function getEnquiryCustomers(): Promise<EnquiryRow[]> {
 			is_active: !!c.is_active,
 			created_at: c.created_at,
 			follow_up_date: null,
-			interested_plan: c.property_type,
 			enquiry_status: c.lead_status || "New Lead",
 			advisor_id: c.advisor_id,
 			advisor_name: c.advisors?.name || null,
+			source_advisor_id: c.source_advisor_id,
 
 			// CRM fields
 			lead_status: c.lead_status || "New Lead",
@@ -208,6 +209,9 @@ export async function createEnquiryCustomer(
 	if (advisorId) {
 		customerPayload.advisor_id = advisorId;
 	}
+	if (parsed.data.source_advisor_id) {
+		customerPayload.source_advisor_id = parsed.data.source_advisor_id;
+	}
 
 	if (customerId) {
 		const { error: updErr } = await supabase.from("customers").update(customerPayload).eq("id", customerId);
@@ -279,13 +283,16 @@ export async function updateEnquiryCustomer(
 	if (role !== "advisor" && parsed.data.advisor_id !== undefined) {
 		customerPayload.advisor_id = parsed.data.advisor_id || null;
 	}
+	if (parsed.data.source_advisor_id !== undefined) {
+		customerPayload.source_advisor_id = parsed.data.source_advisor_id || null;
+	}
 
 	// If lead was marked as Closed Won, promote to active customer
-	if (customerPayload.lead_status === "Closed Won") {
+	if (customerPayload.lead_status === "🎉 Closed Won") {
 		customerPayload.is_active = true;
 	}
-	// If re-opened from Closed Won, deactivate
-	if (customerPayload.lead_status === "Closed Lost") {
+	// If re-opened or marked as Closed Lost, deactivate
+	if (customerPayload.lead_status === "❌ Closed Lost") {
 		customerPayload.is_active = false;
 	}
 
@@ -320,7 +327,7 @@ export async function upgradeEnquiryToCustomer(opts: {
 		.from("customers")
 		.update({
 			is_active: true,
-			lead_status: "Closed Won"
+			lead_status: "🎉 Closed Won"
 		})
 		.eq("id", opts.enquiryId);
 
@@ -342,7 +349,7 @@ export async function markLeadAsLost(enquiryId: string): Promise<ActionResponse>
 		.from("customers")
 		.update({
 			is_active: false,
-			lead_status: "Closed Lost"
+			lead_status: "❌ Closed Lost"
 		})
 		.eq("id", enquiryId);
 

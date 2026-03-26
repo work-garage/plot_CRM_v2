@@ -1,11 +1,14 @@
-"use client";
-
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Building2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ADMIN_NAV_ITEMS, type NavItem } from "./nav-items";
 import { Button } from "@/components/ui";
+
+import { useModules } from "@/components/providers/module-context";
+import { AddSectionsModal } from "./add-sections-modal";
+import { PlusCircle } from "lucide-react";
 
 interface SidebarProps {
   open: boolean;
@@ -15,7 +18,14 @@ interface SidebarProps {
 
 export function Sidebar({ open, onClose, items }: SidebarProps) {
   const pathname = usePathname();
-  const navItems = items ?? ADMIN_NAV_ITEMS;
+  const { modules } = useModules();
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  // Filter items based on modules
+  const rawItems = items ?? ADMIN_NAV_ITEMS;
+  const navItems = rawItems.filter(item => !item.module || modules[item.module]);
+
+  const isAdmin = !items; // Simple heuristic: Admin layout doesn't pass items
 
   return (
     <>
@@ -30,7 +40,7 @@ export function Sidebar({ open, onClose, items }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "flex fixed top-0 left-0 z-50 flex-col w-64 h-full text-white transition-transform duration-200 ease-in-out bg-zinc-950 border-r border-zinc-900 lg:translate-x-0 lg:static lg:z-auto",
+          "flex fixed top-0 left-0 z-40 flex-col w-64 h-full text-white transition-transform duration-200 ease-in-out bg-zinc-950 border-r border-zinc-900 lg:translate-x-0 lg:static lg:z-auto",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -44,14 +54,12 @@ export function Sidebar({ open, onClose, items }: SidebarProps) {
               <p className="text-base font-bold tracking-tight leading-none text-zinc-50">PLOT CRM</p>
             </div>
           </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden text-zinc-400 hover:text-white hover:bg-zinc-800"
+          <button
+            className="lg:hidden text-zinc-400 hover:text-white"
             onClick={onClose}
           >
             <X className="w-5 h-5" />
-          </Button>
+          </button>
         </div>
 
         {/* Nav Links */}
@@ -59,7 +67,7 @@ export function Sidebar({ open, onClose, items }: SidebarProps) {
           {navItems.map((item) => {
             const isActive =
               pathname === item.href ||
-              (item.href !== "/dashboard" && pathname.startsWith(item.href));
+              (item.href !== "/dashboard" && item.href !== "/advisor" && pathname.startsWith(item.href));
 
             return (
               <Link
@@ -78,14 +86,27 @@ export function Sidebar({ open, onClose, items }: SidebarProps) {
               </Link>
             );
           })}
+
+          {isAdmin && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-primary hover:bg-primary/5 transition-all mt-4 border border-dashed border-primary/30"
+            >
+              <PlusCircle className="w-5 h-5 shrink-0" />
+              Add Sections
+            </button>
+          )}
         </nav>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-zinc-800">
-          <p className="text-[11px] text-zinc-500">
-            © {new Date().getFullYear()} S-INFRA
+        <div className="px-6 py-4 border-t border-zinc-900 bg-zinc-950/50">
+          <p className="text-[10px] uppercase font-bold text-zinc-600 tracking-widest mb-1">Source</p>
+          <p className="text-[11px] text-zinc-400 font-medium">
+            © {new Date().getFullYear()} S-INFRA CRM
           </p>
         </div>
+
+        <AddSectionsModal open={showAddModal} onOpenChange={setShowAddModal} />
       </aside>
     </>
   );

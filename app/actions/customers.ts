@@ -228,21 +228,16 @@ export async function getCustomers() {
 		)
 		.order("name", { ascending: true });
 
+	// Admin and Advisor: only see active (Closed Won) customers
+	query = query.eq("is_active", true);
+
+	// If role is advisor, only show their own
 	if (role === "advisor") {
-		// Always look up from DB — never trust JWT metadata which can be stale
-		const { data: adv } = await supabase
-			.from("advisors")
-			.select("id")
-			.eq("auth_user_id", user!.id)
-			.single();
-		if (adv?.id) {
-			// Advisor sees only their active (Closed Won) customers
-			query = query.eq("advisor_id", adv.id).eq("is_active", true);
-		} else {
-			return []; // Advisor record not found — return empty
+		const advisorId = (user?.user_metadata as any)?.advisor_id;
+		if (advisorId) {
+			query = query.eq("advisor_id", advisorId);
 		}
 	}
-	// Admin: no filter — returns all customers
 
 	const { data, error } = await query;
 
@@ -268,19 +263,8 @@ export async function getCustomerById(id: string) {
 		.select("*")
 		.eq("id", id);
 
-	if (role === "advisor") {
-		// Always look up from DB — never trust JWT metadata which can be stale
-		const { data: adv } = await supabase
-			.from("advisors")
-			.select("id")
-			.eq("auth_user_id", user.id)
-			.single();
-		if (adv?.id) {
-			query = query.eq("advisor_id", adv.id).eq("is_active", true);
-		} else {
-			return null;
-		}
-	}
+	// Only return active (Closed Won) customers
+	query = query.eq("is_active", true);
 
 	const { data, error } = await query.single();
 	if (error) return null;

@@ -21,6 +21,11 @@ import {
 	FormItem,
 	FormLabel,
 	FormMessage,
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
 } from "@/components/ui";
 import {
 	projectSchema,
@@ -59,7 +64,7 @@ export function ProjectForm({ mode, initialData }: ProjectFormProps) {
 			total_plots_count: initialData?.total_plots_count ?? 0,
 			starting_plot_number: initialData?.starting_plot_number ?? 1,
 			builder_name: initialData?.builder_name ?? "",
-			segment: initialData?.segment ?? "",
+			segment: (initialData?.segment as any) ?? "Mid",
 			description: initialData?.description ?? "",
 		},
 	});
@@ -94,6 +99,7 @@ export function ProjectForm({ mode, initialData }: ProjectFormProps) {
 			location: `${randomLoc}, Nagpur`,
 			total_plots_count: Math.floor(Math.random() * 150) + 20,
 			starting_plot_number: 1,
+			segment: "Mid",
 			description: `Premium land project located in the fast-growing ${randomLoc} area of Nagpur. Excellent connectivity and future appreciation potential.`,
 		});
 	};
@@ -244,8 +250,8 @@ export function ProjectForm({ mode, initialData }: ProjectFormProps) {
 													const sanitized = raw.replace(/^0+(?=\d)/, "");
 													field.onChange(
 														sanitized === ""
-															? 0
-															: parseInt(sanitized) || 0
+															? 1
+															: Math.max(1, parseInt(sanitized) || 1)
 													);
 												}}
 											/>
@@ -303,9 +309,21 @@ export function ProjectForm({ mode, initialData }: ProjectFormProps) {
 								render={({ field }) => (
 									<FormItem>
 										<FormLabel>Segment</FormLabel>
-										<FormControl>
-											<Input placeholder="e.g. Luxury / Mid-range" {...field} value={field.value ?? ""} />
-										</FormControl>
+										<Select
+											onValueChange={field.onChange}
+											defaultValue={field.value}
+										>
+											<FormControl>
+												<SelectTrigger>
+													<SelectValue placeholder="Select Segment" />
+												</SelectTrigger>
+											</FormControl>
+											<SelectContent>
+												<SelectItem value="Luxury">Luxury</SelectItem>
+												<SelectItem value="Mid">Mid</SelectItem>
+												<SelectItem value="Affordable">Affordable</SelectItem>
+											</SelectContent>
+										</Select>
 										<FormMessage />
 									</FormItem>
 								)}

@@ -272,6 +272,9 @@ export type AdvisorAnalytics = {
 		amount_paid: number;
 		remaining_commission: number;
 	}>;
+	assignedCount: number;
+	wonCount: number;
+	lostCount: number;
 };
 
 export async function getAdvisorAnalytics(
@@ -358,6 +361,24 @@ export async function getAdvisorAnalytics(
 	const commissionPaid = commList.reduce((s, x) => s + x.amount_paid, 0);
 	const commissionPending = commList.reduce((s, x) => s + x.remaining_commission, 0);
 
+	// Fetch lead stats for this advisor
+	const { count: assignedCount } = await supabase
+		.from("customers")
+		.select("*", { count: "exact", head: true })
+		.eq("advisor_id", advisorId);
+
+	const { count: wonCount } = await supabase
+		.from("customers")
+		.select("*", { count: "exact", head: true })
+		.eq("advisor_id", advisorId)
+		.eq("lead_status", "🎉 Closed Won");
+
+	const { count: lostCount } = await supabase
+		.from("customers")
+		.select("*", { count: "exact", head: true })
+		.eq("advisor_id", advisorId)
+		.eq("lead_status", "❌ Closed Lost");
+
 	return {
 		advisor,
 		salesCount,
@@ -367,5 +388,33 @@ export async function getAdvisorAnalytics(
 		commissionPending,
 		sales: salesList,
 		commissions: commList,
+		assignedCount: assignedCount || 0,
+		wonCount: wonCount || 0,
+		lostCount: lostCount || 0,
 	};
+}
+
+export async function getAdvisorsWithLeadStats() {
+	const supabase = await createClient();
+	if (!supabase) return [];
+
+	const { data: advisors, error } = await supabase
+		.from("advisors")
+		.select(`
+			*,
+			customers(lead_status)
+		`)
+		.order("name", { ascending: true });
+
+	if (error) return [];
+
+	return (advisors || []).map(adv => {
+		const leads = adv.customers || [];
+		return {
+			...adv,
+			assignedCount: leads.length,
+			wonCount: leads.filter((l: any) => l.lead_status === "🎉 Closed Won").length,
+			lostCount: leads.filter((l: any) => l.lead_status === "❌ Closed Lost").length,
+		};
+	});
 }

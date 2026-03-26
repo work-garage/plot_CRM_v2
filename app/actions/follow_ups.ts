@@ -23,30 +23,30 @@ export type FollowUpPayload = {
 
 function deriveLeadStatus(data: FollowUpPayload, currentStatus: string): string {
 	// Customer says Not Interested → Closed Lost immediately
-	if (data.customer_mood === "Not Interested") return "Closed Lost";
+	if (data.customer_mood === "Not Interested") return "❌ Closed Lost";
 
 	// Never regress from a closed state
-	if (currentStatus === "Closed Won" || currentStatus === "Closed Lost") return currentStatus;
+	if (currentStatus === "🎉 Closed Won" || currentStatus === "❌ Closed Lost") return currentStatus;
 
 	// Stage 3: Site visit physically happened
-	if (data.site_visit_done) return "Site Visit Done";
+	if (data.site_visit_done) return "🏠 Site Visit Done — Negotiation & Answer Pending";
 
 	// Stage 2: Both WhatsApp AND Call done + site visit date scheduled
-	// → "Site Visit Scheduled" (display label: "Contact Done — Site Visit Pending")
 	if (data.whatsapp_done && data.call_done && data.next_follow_up_date) {
-		return "Site Visit Scheduled";
+		return "✅ Contact Done — Site Visit Pending";
 	}
 
 	// Stage 1: WhatsApp OR Call done (partial contact)
-	// → "Contacted" (display label: "Contact Pending")
 	if (data.whatsapp_done || data.call_done) {
-		// Never regress a lead that has already progressed further
-		const advancedStatuses = ["Site Visit Scheduled", "Site Visit Done", "Negotiation"];
+		const advancedStatuses = [
+			"✅ Contact Done — Site Visit Pending",
+			"🏠 Site Visit Done — Negotiation & Answer Pending",
+		];
 		if (advancedStatuses.includes(currentStatus)) return currentStatus;
-		return "Contacted";
+		return "📞 Contact Pending";
 	}
 
-	// No interaction checkboxes marked — keep current status (mood/notes only)
+	// No interaction checkboxes marked — keep current status
 	return currentStatus;
 }
 
@@ -82,15 +82,15 @@ export async function addFollowUp(
 		.eq("id", customerId)
 		.single();
 
-	const currentStatus = customerRow?.lead_status || "New Lead";
+	const currentStatus = customerRow?.lead_status || "🆕 New Lead — Contact Pending";
 	const newLeadStatus = deriveLeadStatus(data, currentStatus);
 
 	// Only update if status changed
 	if (newLeadStatus !== currentStatus) {
 		const updatePayload: any = { lead_status: newLeadStatus };
 		// Closed Lost = inactive, Closed Won = active
-		if (newLeadStatus === "Closed Won") updatePayload.is_active = true;
-		if (newLeadStatus === "Closed Lost") updatePayload.is_active = false;
+		if (newLeadStatus === "🎉 Closed Won") updatePayload.is_active = true;
+		if (newLeadStatus === "❌ Closed Lost") updatePayload.is_active = false;
 		await supabase.from("customers").update(updatePayload).eq("id", customerId);
 	}
 

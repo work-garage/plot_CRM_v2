@@ -21,13 +21,16 @@ import {
 import type { EnquiryCustomerFormValues } from "@/lib/validations/enquiry";
 import { createEnquiryCustomer } from "@/app/actions/enquiries";
 
-const LEAD_SOURCE_OPTIONS = ["Facebook", "Referral", "Website", "Assigned Advisor", "Other"] as const;
+const LEAD_SOURCE_OPTIONS = ["Facebook", "Referral", "Website", "Advisor", "Other"] as const;
 const PROPERTY_TYPE_OPTIONS = ["Flats", "Plots", "Villas"] as const;
-const SEGMENT_OPTIONS = ["Luxury", "Mid-range", "Affordable"] as const;
+const SEGMENT_OPTIONS = ["Luxury", "Mid", "Affordable"] as const;
 const LEAD_STATUS_OPTIONS = [
-	"New Lead", "Contacted", "Follow-up",
-	"Site Visit Scheduled", "Site Visit Done", "Negotiation",
-	"Closed Won", "Closed Lost",
+	"🆕 New Lead — Contact Pending",
+	"📞 Contact Pending",
+	"✅ Contact Done — Site Visit Pending",
+	"🏠 Site Visit Done — Negotiation & Answer Pending",
+	"🎉 Closed Won",
+	"❌ Closed Lost",
 ] as const;
 
 function FormLabel({ children }: { children: React.ReactNode }) {
@@ -56,10 +59,13 @@ export function EnquiryCreateModal({
 		email: "", city: "", address: "",
 		birth_date: null, project_id: null, category: "General",
 		details: "", is_active: false, follow_up_date: null,
-		interested_plan: null, enquiry_status: "New Lead",
+		enquiry_status: "🆕 New Lead — Contact Pending",
 		lead_source: null, property_type: null, segment: null,
 		budget_min: null, budget_max: null,
-		preferred_location: "", bhk_size: "", advisor_id: null,
+		preferred_location: "",
+		bhk_size: "",
+		advisor_id: null,
+		source_advisor_id: null,
 	};
 	const [form, setForm] = useState<EnquiryCustomerFormValues>(empty);
 
@@ -76,9 +82,9 @@ export function EnquiryCreateModal({
 			toast.error("Name and phone are required.");
 			return;
 		}
-		// If lead source is "Assigned Advisor" and admin has advisor list, require advisor selection
-		if (form.lead_source === "Assigned Advisor" && advisors.length > 0 && !form.advisor_id) {
-			toast.error("Please select an advisor — this lead is marked as 'Assigned Advisor'.");
+		// If lead source is "Advisor" and admin has advisor list, require source advisor selection
+		if (form.lead_source === "Advisor" && advisors.length > 0 && !form.source_advisor_id) {
+			toast.error("Please select a Source Advisor — this lead is marked as 'Advisor'.");
 			return;
 		}
 		setSaving(true);
@@ -194,13 +200,29 @@ export function EnquiryCreateModal({
 							</FieldGroup>
 							<FieldGroup>
 								<FormLabel>Lead Status</FormLabel>
-								<Select value={form.enquiry_status || "New Lead"} onValueChange={v => set("enquiry_status", v)}>
+								<Select value={form.enquiry_status || "🆕 New Lead — Contact Pending"} onValueChange={v => set("enquiry_status", v)}>
 									<SelectTrigger><SelectValue /></SelectTrigger>
 									<SelectContent>
 										{LEAD_STATUS_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
 									</SelectContent>
 								</Select>
 							</FieldGroup>
+
+							{form.lead_source === "Advisor" && advisors.length > 0 && (
+								<FieldGroup>
+									<FormLabel>Source Advisor *</FormLabel>
+									<Select value={form.source_advisor_id || "none"} onValueChange={v => set("source_advisor_id", v === "none" ? null : v)}>
+										<SelectTrigger className="ring-2 ring-blue-500 border-blue-400">
+											<SelectValue placeholder="Which advisor brought this?" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="none">Select Advisor...</SelectItem>
+											{advisors.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+										</SelectContent>
+									</Select>
+								</FieldGroup>
+							)}
+
 							<FieldGroup>
 								<FormLabel>Interested Project</FormLabel>
 								<Select value={form.project_id || "none"} onValueChange={v => set("project_id", v === "none" ? null : v)}>
@@ -211,28 +233,19 @@ export function EnquiryCreateModal({
 									</SelectContent>
 								</Select>
 							</FieldGroup>
+
 							{advisors.length > 0 && (
 								<FieldGroup>
-									<FormLabel>
-										Assigned Advisor
-										{form.lead_source === "Assigned Advisor" && (
-											<span className="ml-1 text-blue-600 text-xs font-bold">* Required</span>
-										)}
-									</FormLabel>
+									<FormLabel>Assigned Advisor (for Admin)</FormLabel>
 									<Select value={form.advisor_id || "none"} onValueChange={v => set("advisor_id", v === "none" ? null : v)}>
-										<SelectTrigger
-											className={form.lead_source === "Assigned Advisor" ? "ring-2 ring-blue-500 border-blue-400" : ""}
-										>
-											<SelectValue placeholder="Select advisor..." />
+										<SelectTrigger>
+											<SelectValue placeholder="Assign working advisor..." />
 										</SelectTrigger>
 										<SelectContent>
 											<SelectItem value="none">Unassigned</SelectItem>
 											{advisors.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
 										</SelectContent>
 									</Select>
-									{form.lead_source === "Assigned Advisor" && !form.advisor_id && (
-										<p className="text-xs text-blue-600 mt-1">Select the advisor who brought this lead.</p>
-									)}
 								</FieldGroup>
 							)}
 							<FieldGroup>

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Phone, MapPin, Pencil } from "lucide-react";
+import { useModules } from "@/components/providers/module-context";
 import {
 	Card,
 	CardContent,
@@ -17,6 +18,7 @@ interface AdvisorCardProps {
 
 export function AdvisorCard({ advisor }: AdvisorCardProps) {
 	const router = useRouter();
+	const { modules } = useModules();
 
 	return (
 		<div
@@ -57,6 +59,20 @@ export function AdvisorCard({ advisor }: AdvisorCardProps) {
 							<span className="truncate">{advisor.address}</span>
 						</div>
 					)}
+					<div className="pt-2 border-t grid grid-cols-3 gap-1 text-center">
+						<div className="flex flex-col">
+							<span className="text-[10px] font-bold text-zinc-400 uppercase">Assigned</span>
+							<span className="text-sm font-bold text-blue-600">{advisor.assignedCount || 0}</span>
+						</div>
+						<div className="flex flex-col border-x">
+							<span className="text-[10px] font-bold text-zinc-400 uppercase">Won</span>
+							<span className="text-sm font-bold text-green-600">{advisor.wonCount || 0}</span>
+						</div>
+						<div className="flex flex-col">
+							<span className="text-[10px] font-bold text-zinc-400 uppercase">Lost</span>
+							<span className="text-sm font-bold text-zinc-600">{advisor.lostCount || 0}</span>
+						</div>
+					</div>
 					{advisor.team && (
 						<div className="pt-2 border-t flex items-center justify-between">
 							<div className="text-xs font-semibold text-zinc-500 uppercase">
@@ -65,14 +81,16 @@ export function AdvisorCard({ advisor }: AdvisorCardProps) {
 							<span className="text-sm font-medium text-zinc-700">{advisor.team}</span>
 						</div>
 					)}
-					<div className="pt-2 border-t flex items-center justify-between">
-						<div className="text-xs font-semibold text-zinc-500">
-							PROJECT-WISE COMMISSION
+					{modules.commissions && (
+						<div className="pt-2 border-t flex items-center justify-between">
+							<div className="text-xs font-semibold text-zinc-500">
+								PROJECT-WISE COMMISSION
+							</div>
+							<Badge variant="secondary" className="bg-zinc-100">
+								Manage in Project
+							</Badge>
 						</div>
-						<Badge variant="secondary" className="bg-zinc-100">
-							Manage in Project
-						</Badge>
-					</div>
+					)}
 				</CardContent>
 			</Card>
 		</div>

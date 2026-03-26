@@ -3,10 +3,10 @@ import { Plus, Users, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui";
 import { PageHeader } from "@/components/shared/page-header";
 import { AdvisorCard } from "@/components/advisors/advisor-card";
-import { getAdvisors } from "@/app/actions/advisors";
+import { getAdvisorsWithLeadStats } from "@/app/actions/advisors";
 
 export default async function AdvisorsPage() {
-  const advisors = await getAdvisors();
+  const advisors = await getAdvisorsWithLeadStats();
 
   return (
     <div className="space-y-6">

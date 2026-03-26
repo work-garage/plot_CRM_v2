@@ -31,9 +31,9 @@ export function getContactStatus(enq: {
 	lead_status: string;
 	site_visit_date?: string | null;
 }): ContactStatus {
-	const s = enq.lead_status || "New Lead";
+	const s = enq.lead_status || "🆕 New Lead — Contact Pending";
 
-	if (s === "Closed Won") {
+	if (s === "🎉 Closed Won") {
 		return {
 			label: "🎉 Closed Won",
 			color: "bg-green-50 text-green-700 border-green-200",
@@ -41,7 +41,7 @@ export function getContactStatus(enq: {
 			siteVisitDate: null,
 		};
 	}
-	if (s === "Closed Lost") {
+	if (s === "❌ Closed Lost") {
 		return {
 			label: "❌ Closed Lost",
 			color: "bg-red-50 text-red-700 border-red-200",
@@ -50,8 +50,7 @@ export function getContactStatus(enq: {
 		};
 	}
 
-	// Stage 2: Both contacts done + site visit scheduled
-	if (s === "Site Visit Scheduled") {
+	if (s === "✅ Contact Done — Site Visit Pending") {
 		const svDate = enq.site_visit_date ?? null;
 		const dateStr = svDate
 			? new Date(svDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" })
@@ -64,18 +63,16 @@ export function getContactStatus(enq: {
 		};
 	}
 
-	// Stage 3: Site visit physically done, negotiation pending
-	if (s === "Site Visit Done" || s === "Negotiation") {
+	if (s === "🏠 Site Visit Done — Negotiation & Answer Pending") {
 		return {
-			label: "🏠 Site Visit Done — Awaiting Decision",
+			label: "🏠 Site Visit Done — Negotiation & Answer Pending",
 			color: "bg-purple-50 text-purple-700 border-purple-200",
 			sortOrder: 2,
 			siteVisitDate: null,
 		};
 	}
 
-	// Stage 1: Partial contact — WhatsApp or Call done (not both)
-	if (s === "Contacted" || s === "Follow-up") {
+	if (s === "📞 Contact Pending") {
 		return {
 			label: "📞 Contact Pending",
 			color: "bg-sky-50 text-sky-700 border-sky-200",
@@ -84,7 +81,7 @@ export function getContactStatus(enq: {
 		};
 	}
 
-	// Stage 0: New Lead — no contact yet
+	// Final Fallback: New Lead
 	return {
 		label: "🆕 New Lead — Contact Pending",
 		color: "bg-blue-50 text-blue-700 border-blue-200",

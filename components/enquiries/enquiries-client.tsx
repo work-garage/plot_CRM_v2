@@ -51,20 +51,20 @@ export function EnquiriesClient({
 	const [editEnquiry, setEditEnquiry] = useState<EnquiryRow | null>(null);
 
 	const tabCounts = useMemo(() => ({
-		active: initialEnquiries.filter(e => e.lead_status !== "Closed Won" && e.lead_status !== "Closed Lost").length,
-		completed: initialEnquiries.filter(e => e.lead_status === "Closed Won" || e.lead_status === "Closed Lost").length,
-		won: initialEnquiries.filter(e => e.lead_status === "Closed Won").length,
-		lost: initialEnquiries.filter(e => e.lead_status === "Closed Lost").length,
+		active: initialEnquiries.filter(e => e.lead_status !== "🎉 Closed Won" && e.lead_status !== "❌ Closed Lost").length,
+		completed: initialEnquiries.filter(e => e.lead_status === "🎉 Closed Won" || e.lead_status === "❌ Closed Lost").length,
+		won: initialEnquiries.filter(e => e.lead_status === "🎉 Closed Won").length,
+		lost: initialEnquiries.filter(e => e.lead_status === "❌ Closed Lost").length,
 	}), [initialEnquiries]);
 
 	const filtered = useMemo(() => {
 		const q = query.trim().toLowerCase();
 		let list = initialEnquiries.filter((e) => {
 			// Tab filter
-			if (activeTab === "active" && (e.lead_status === "Closed Won" || e.lead_status === "Closed Lost")) return false;
-			if (activeTab === "completed" && e.lead_status !== "Closed Won" && e.lead_status !== "Closed Lost") return false;
-			if (activeTab === "won" && e.lead_status !== "Closed Won") return false;
-			if (activeTab === "lost" && e.lead_status !== "Closed Lost") return false;
+			if (activeTab === "active" && (e.lead_status === "🎉 Closed Won" || e.lead_status === "❌ Closed Lost")) return false;
+			if (activeTab === "completed" && e.lead_status !== "🎉 Closed Won" && e.lead_status !== "❌ Closed Lost") return false;
+			if (activeTab === "won" && e.lead_status !== "🎉 Closed Won") return false;
+			if (activeTab === "lost" && e.lead_status !== "❌ Closed Lost") return false;
 
 			if (!q) return true;
 			const hay = `${e.name} ${e.phone} ${e.city ?? ""} ${e.email ?? ""} ${e.property_type ?? ""} ${e.project_name ?? ""} ${e.lead_source ?? ""} ${e.advisor_name ?? ""}`.toLowerCase();
@@ -163,8 +163,8 @@ export function EnquiriesClient({
 					{activeTab === "completed" ? (
 						// Completed Leads: grouped by Won / Lost
 						(() => {
-							const won  = filtered.filter(e => e.lead_status === "Closed Won");
-							const lost = filtered.filter(e => e.lead_status === "Closed Lost");
+							const won  = filtered.filter(e => e.lead_status === "🎉 Closed Won");
+							const lost = filtered.filter(e => e.lead_status === "❌ Closed Lost");
 							return (
 								<div className="flex flex-col">
 									{won.length > 0 && (

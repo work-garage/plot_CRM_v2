@@ -25,13 +25,16 @@ import { CustomerFollowUps } from "./customer-follow-ups";
 import { getContactStatus } from "@/lib/crm-utils";
 import { cn } from "@/lib/utils";
 
-const LEAD_SOURCE_OPTIONS = ["Facebook", "Referral", "Website", "Assigned Advisor", "Other"] as const;
+const LEAD_SOURCE_OPTIONS = ["Facebook", "Referral", "Website", "Advisor", "Other"] as const;
 const PROPERTY_TYPE_OPTIONS = ["Flats", "Plots", "Villas"] as const;
-const SEGMENT_OPTIONS = ["Luxury", "Mid-range", "Affordable"] as const;
+const SEGMENT_OPTIONS = ["Luxury", "Mid", "Affordable"] as const;
 const LEAD_STATUS_OPTIONS = [
-	"New Lead", "Contacted", "Follow-up",
-	"Site Visit Scheduled", "Site Visit Done", "Negotiation",
-	"Closed Won", "Closed Lost",
+	"🆕 New Lead — Contact Pending",
+	"📞 Contact Pending",
+	"✅ Contact Done — Site Visit Pending",
+	"🏠 Site Visit Done — Negotiation & Answer Pending",
+	"🎉 Closed Won",
+	"❌ Closed Lost",
 ] as const;
 
 function FormLabel({ children }: { children: React.ReactNode }) {
@@ -76,8 +79,7 @@ export function EnquiryEditModal({
 			details: enquiry.details ?? "",
 			is_active: enquiry.is_active,
 			follow_up_date: enquiry.follow_up_date,
-			interested_plan: enquiry.interested_plan,
-			enquiry_status: (enquiry.lead_status as any) || "New Lead",
+			enquiry_status: (enquiry.lead_status as any) || "🆕 New Lead — Contact Pending",
 			lead_source: enquiry.lead_source as any || null,
 			property_type: enquiry.property_type as any || null,
 			segment: enquiry.segment as any || null,
@@ -86,6 +88,7 @@ export function EnquiryEditModal({
 			preferred_location: enquiry.preferred_location ?? "",
 			bhk_size: enquiry.bhk_size ?? "",
 			advisor_id: enquiry.advisor_id,
+			source_advisor_id: enquiry.source_advisor_id,
 		});
 	}, [open, enquiry]);
 
@@ -285,13 +288,29 @@ export function EnquiryEditModal({
 								</FieldGroup>
 								<FieldGroup>
 									<FormLabel>Lead Status</FormLabel>
-									<Select value={form.enquiry_status || "New Lead"} onValueChange={v => set("enquiry_status", v)}>
+									<Select value={form.enquiry_status || "🆕 New Lead — Contact Pending"} onValueChange={v => set("enquiry_status", v)}>
 										<SelectTrigger><SelectValue /></SelectTrigger>
 										<SelectContent>
 											{LEAD_STATUS_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
 										</SelectContent>
 									</Select>
 								</FieldGroup>
+
+								{form.lead_source === "Advisor" && advisors.length > 0 && (
+									<FieldGroup>
+										<FormLabel>Source Advisor *</FormLabel>
+										<Select value={form.source_advisor_id || "none"} onValueChange={v => set("source_advisor_id", v === "none" ? null : v)}>
+											<SelectTrigger className="ring-2 ring-blue-500 border-blue-400">
+												<SelectValue placeholder="Which advisor brought this?" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="none">Select Advisor...</SelectItem>
+												{advisors.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+											</SelectContent>
+										</Select>
+									</FieldGroup>
+								)}
+
 								<FieldGroup>
 									<FormLabel>Interested Project</FormLabel>
 									<Select value={form.project_id || "none"} onValueChange={v => set("project_id", v === "none" ? null : v)}>
@@ -304,16 +323,9 @@ export function EnquiryEditModal({
 								</FieldGroup>
 								{advisors.length > 0 && (
 									<FieldGroup>
-										<FormLabel>
-											Assigned Advisor
-											{form.lead_source === "Assigned Advisor" && (
-												<span className="ml-1 text-blue-600 text-xs font-bold">* Required</span>
-											)}
-										</FormLabel>
+										<FormLabel>Assigned Advisor (for Admin)</FormLabel>
 										<Select value={form.advisor_id || "none"} onValueChange={v => set("advisor_id", v === "none" ? null : v)}>
-											<SelectTrigger
-												className={form.lead_source === "Assigned Advisor" ? "ring-2 ring-blue-500 border-blue-400" : ""}
-											>
+											<SelectTrigger>
 												<SelectValue />
 											</SelectTrigger>
 											<SelectContent>
@@ -321,9 +333,6 @@ export function EnquiryEditModal({
 												{advisors.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
 											</SelectContent>
 										</Select>
-										{form.lead_source === "Assigned Advisor" && !form.advisor_id && (
-											<p className="text-xs text-blue-600 mt-1">Select the advisor who brought this lead.</p>
-										)}
 									</FieldGroup>
 								)}
 								<FieldGroup>

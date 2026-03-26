@@ -209,7 +209,21 @@ export async function getReportStats(filters?: ReportFilters) {
 		0
 	);
 
-	// 13. Sale count by month (for trend)
+	// 13. Base Lead Stats (always available)
+	const { data: allCustomers } = await supabase
+		.from("customers")
+		.select("id, lead_status, is_active");
+
+	const baseLeadStats = {
+		total: allCustomers?.length ?? 0,
+		active: (allCustomers ?? []).filter(c => 
+			!c.lead_status?.includes("Won") && !c.lead_status?.includes("Lost")
+		).length,
+		won: (allCustomers ?? []).filter(c => c.lead_status?.includes("Won")).length,
+		lost: (allCustomers ?? []).filter(c => c.lead_status?.includes("Lost")).length,
+	};
+
+	// 14. Sale count by month (for trend)
 	const salesByMonth: Record<string, { count: number; value: number }> = {};
 	for (const s of filteredSales) {
 		const dt = (s as any).created_at ?? "";
@@ -238,6 +252,7 @@ export async function getReportStats(filters?: ReportFilters) {
 			.map(([category, count]) => ({ category, count }))
 			.sort((a, b) => b.count - a.count)
 			.slice(0, 5),
+		baseLeadStats,
 		advisorPerformance,
 		projectStats,
 		revenueByProject: Object.entries(revenueByProject).map(([name, v]) => ({ name, value: v })),
@@ -362,6 +377,7 @@ function getEmptyReport() {
 		topAdvisors: [] as { name: string; value: number }[],
 		expenseByCategory: [] as { category: string; value: number }[],
 		collectionsVsOutstanding: { collected: 0, outstanding: 0, total: 0 },
+		baseLeadStats: { total: 0, active: 0, won: 0, lost: 0 },
 		newCustomersInPeriod: 0,
 		salesByMonth: [] as { month: string; count: number; value: number }[],
 	};

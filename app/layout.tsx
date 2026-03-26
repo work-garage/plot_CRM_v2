@@ -55,6 +55,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { ModuleProvider } from "@/components/providers/module-context";
+
 export default function RootLayout({
 	children,
 }: {
@@ -67,7 +69,9 @@ export default function RootLayout({
 			suppressHydrationWarning
 		>
 			<body className={inter.className} suppressHydrationWarning>
-				{children}
+				<ModuleProvider>
+					{children}
+				</ModuleProvider>
 				<Toaster position="top-right" richColors closeButton />
 			</body>
 		</html>
