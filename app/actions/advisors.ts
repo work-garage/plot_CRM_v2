@@ -289,7 +289,7 @@ export async function getAdvisorAnalytics(
 	// Sourcing vs Assigned logic: Advisors see enquiries they sourced OR were assigned to.
 	// We need to fetch sales and commissions based on these visible customers.
 	
-	// 1. Fetch sales: Sourced OR Assigned
+	// 1. Fetch sales for this advisor
 	const { data: sales } = await supabase
 		.from("plot_sales")
 		.select(
@@ -301,10 +301,10 @@ export async function getAdvisorAnalytics(
       sale_phase,
       token_date,
       plots(plot_number, projects(name)),
-      customers!inner(id, name, source_advisor_id)
+      customers(name)
     `
 		)
-		.or(`advisor_id.eq.${advisorId},customers.source_advisor_id.eq.${advisorId}`)
+		.eq("advisor_id", advisorId)
 		.eq("is_cancelled", false)
 		.order("created_at", { ascending: false });
 
@@ -316,15 +316,14 @@ export async function getAdvisorAnalytics(
       total_commission_amount,
       amount_paid,
       remaining_commission,
-      plot_sales!inner(
+      plot_sales(
         total_sale_amount,
         amount_paid,
-        plots(plot_number, size_sqft, rate_per_sqft),
-        customers!inner(source_advisor_id)
+        plots(plot_number, size_sqft, rate_per_sqft)
       )
     `
 		)
-		.or(`advisor_id.eq.${advisorId},plot_sales.customers.source_advisor_id.eq.${advisorId}`)
+		.eq("advisor_id", advisorId)
 		.order("created_at", { ascending: false });
 
 	const salesList = (sales ?? []).map((s: any) => ({

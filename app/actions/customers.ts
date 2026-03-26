@@ -228,7 +228,7 @@ export async function getCustomers() {
 		.select(
 			`
       *,
-      advisors(name)
+      advisors!advisor_id(name)
     `
 		)
 		.order("name", { ascending: true });

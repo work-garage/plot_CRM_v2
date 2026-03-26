@@ -57,26 +57,20 @@ export async function getCommissions() {
       )
     `;
 
-	let query = supabase.from("advisor_commissions").select(`
-       ${extraSelect},
-       plot_sales!inner(
-         customers!inner(source_advisor_id)
-       )
-    `);
-
+	// Resolve advisor_id for this session if advisor role
+	let advisorId: string | null = null;
 	if (role === "advisor") {
 		const { data: adv } = await supabase
 			.from("advisors")
 			.select("id")
 			.eq("auth_user_id", user!.id)
 			.single();
-		if (adv?.id) {
-			// Sourced OR Assigned
-			query = query.or(`advisor_id.eq.${adv.id},plot_sales.customers.source_advisor_id.eq.${adv.id}`);
-		} else {
-			return [];
-		}
+		if (!adv?.id) return [];
+		advisorId = adv.id;
 	}
+
+	let query = supabase.from("advisor_commissions").select(extraSelect);
+	if (advisorId) query = query.eq("advisor_id", advisorId);
 
 	const { data: dataWithExtra, error: errWithExtra } = await query.order(
 		"created_at",
@@ -87,10 +81,11 @@ export async function getCommissions() {
 	const msg = (errWithExtra.message || "").toLowerCase();
 	if (!msg.includes("extra_paid_amount")) throw new Error(errWithExtra.message);
 
-	const { data, error } = await supabase
-		.from("advisor_commissions")
-		.select(baseSelect)
-		.order("created_at", { ascending: false });
+	// Fallback: DB doesn't have extra_paid_amount column yet — use baseSelect
+	let fallbackQuery = supabase.from("advisor_commissions").select(baseSelect);
+	if (advisorId) fallbackQuery = fallbackQuery.eq("advisor_id", advisorId);
+
+	const { data, error } = await fallbackQuery.order("created_at", { ascending: false });
 	if (error) throw new Error(error.message);
 	return (data || []).map((row: any) => ({
 		...row,

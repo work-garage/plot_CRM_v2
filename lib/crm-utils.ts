@@ -116,7 +116,7 @@ export function getContactStatus(enq: {
  * 4. New Lead — Contact Pending (shown last)
  */
 export function sortActiveLeads<
-	T extends { lead_status: string; site_visit_date?: string | null; created_at: string },
+	T extends { lead_status: string; site_visit_date?: string | null; created_at: string; updated_at?: string },
 >(leads: T[]): T[] {
 	return [...leads].sort((a, b) => {
 		const ca = getContactStatus(a);

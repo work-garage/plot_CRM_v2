@@ -43,6 +43,7 @@ export type EnquiryRow = {
 	bhk_size: string | null;
 	preferred_location: string | null;
 	task_status: "Completed" | "Pending";
+	updated_at: string;
 	site_visit_date: string | null; // next_follow_up_date from latest follow-up with date scheduled
 };
 
@@ -60,7 +61,7 @@ export async function getEnquiryCustomers(): Promise<EnquiryRow[]> {
 		.from("customers")
 		.select(`
 			id, name, phone, alternate_phone, email, city, address, birth_date,
-			is_active, created_at, notes, advisor_id, source_advisor_id,
+			is_active, created_at, updated_at, notes, advisor_id, source_advisor_id,
 			lead_status, lead_source, property_type, segment,
 			budget_min, budget_max, bhk_size, preferred_location,
 			advisors!advisor_id ( name ),
@@ -83,7 +84,8 @@ export async function getEnquiryCustomers(): Promise<EnquiryRow[]> {
 			.eq("auth_user_id", user.id)
 			.single();
 		if (adv?.id) {
-			query = query.eq("advisor_id", adv.id);
+			// Source OR Assigned: advisor sees all leads they sourced or were assigned to
+			query = query.or(`advisor_id.eq.${adv.id},source_advisor_id.eq.${adv.id}`);
 		} else {
 			// Advisor record not found — return empty to prevent data leakage
 			return [];
@@ -134,6 +136,7 @@ export async function getEnquiryCustomers(): Promise<EnquiryRow[]> {
 				const latest = sorted[0];
 				return (latest.whatsapp_done && latest.call_done && latest.site_visit_done) ? "Completed" : "Pending";
 			})(),
+			updated_at: c.updated_at,
 			site_visit_date: (() => {
 				if (!c.customer_follow_ups?.length) return null;
 				// Sort follow-ups by date descending (newest first)
