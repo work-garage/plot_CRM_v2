@@ -286,6 +286,10 @@ export async function getAdvisorAnalytics(
 	const advisor = await getAdvisorById(advisorId);
 	if (!advisor) return null;
 
+	// Sourcing vs Assigned logic: Advisors see enquiries they sourced OR were assigned to.
+	// We need to fetch sales and commissions based on these visible customers.
+	
+	// 1. Fetch sales where advisor is assigned
 	const { data: sales } = await supabase
 		.from("plot_sales")
 		.select(
@@ -346,12 +350,11 @@ export async function getAdvisorAnalytics(
 		const pendingNow = Math.max(0, eligibleNow - paid);
 
 		return {
-		id: c.id,
-		plot_number: c.plot_sales?.plots?.plot_number ?? "—",
-		// Expose profit-based numbers in the same fields for compatibility
-		total_commission_amount: Number(profitMax ?? 0),
-		amount_paid: paid,
-		remaining_commission: pendingNow,
+			id: c.id,
+			plot_number: c.plot_sales?.plots?.plot_number ?? "—",
+			total_commission_amount: Number(profitMax ?? 0),
+			amount_paid: paid,
+			remaining_commission: pendingNow,
 		};
 	});
 
@@ -361,22 +364,22 @@ export async function getAdvisorAnalytics(
 	const commissionPaid = commList.reduce((s, x) => s + x.amount_paid, 0);
 	const commissionPending = commList.reduce((s, x) => s + x.remaining_commission, 0);
 
-	// Fetch lead stats for this advisor
+	// Fetch lead stats for this advisor (Source OR Assigned)
 	const { count: assignedCount } = await supabase
 		.from("customers")
 		.select("*", { count: "exact", head: true })
-		.eq("advisor_id", advisorId);
+		.or(`advisor_id.eq.${advisorId},source_advisor_id.eq.${advisorId}`);
 
 	const { count: wonCount } = await supabase
 		.from("customers")
 		.select("*", { count: "exact", head: true })
-		.eq("advisor_id", advisorId)
+		.or(`advisor_id.eq.${advisorId},source_advisor_id.eq.${advisorId}`)
 		.eq("lead_status", "🎉 Closed Won");
 
 	const { count: lostCount } = await supabase
 		.from("customers")
 		.select("*", { count: "exact", head: true })
-		.eq("advisor_id", advisorId)
+		.or(`advisor_id.eq.${advisorId},source_advisor_id.eq.${advisorId}`)
 		.eq("lead_status", "❌ Closed Lost");
 
 	return {
@@ -402,19 +405,29 @@ export async function getAdvisorsWithLeadStats() {
 		.from("advisors")
 		.select(`
 			*,
-			customers(lead_status)
+			assigned_customers:customers!advisor_id(lead_status),
+			sourced_customers:customers!source_advisor_id(lead_status)
 		`)
 		.order("name", { ascending: true });
 
-	if (error) return [];
+	if (error) {
+		console.error("Error fetching advisor lead stats:", error);
+		return [];
+	}
 
 	return (advisors || []).map(adv => {
-		const leads = adv.customers || [];
+		const assigned = adv.assigned_customers || [];
+		const sourced = adv.sourced_customers || [];
+		
+		// Combine and deduplicate if necessary, but usually lead_status is just a status.
+		// For counts, we can just merge.
+		const allLeads = [...assigned, ...sourced];
+		
 		return {
 			...adv,
-			assignedCount: leads.length,
-			wonCount: leads.filter((l: any) => l.lead_status === "🎉 Closed Won").length,
-			lostCount: leads.filter((l: any) => l.lead_status === "❌ Closed Lost").length,
+			assignedCount: allLeads.length,
+			wonCount: allLeads.filter((l: any) => l.lead_status === "🎉 Closed Won").length,
+			lostCount: allLeads.filter((l: any) => l.lead_status === "❌ Closed Lost").length,
 		};
 	});
 }

@@ -24,6 +24,7 @@ import {
 	upsertAdvisorAssignment,
 } from "@/app/actions/advisor-projects";
 import { formatCurrencyShort } from "@/lib/utils/formatters";
+import { useModules } from "@/components/providers/module-context";
 
 type Advisor = { id: string; name: string; code: string; phone: string };
 
@@ -36,6 +37,7 @@ export function ProjectAdvisorAssignments({
 	advisors: Advisor[];
 	assignments: AdvisorProjectAssignment[];
 }) {
+	const { modules } = useModules();
 	const MAX_RATE = 9_999_999_999.99;
 	const [saving, setSaving] = useState(false);
 	const [advisorId, setAdvisorId] = useState<string>("");
@@ -58,23 +60,26 @@ export function ProjectAdvisorAssignments({
 			toast.error("Select an advisor");
 			return;
 		}
-		if (!Number.isFinite(commissionRate) || commissionRate < 0) {
-			toast.error("Invalid rate", {
-				description: `Commission rate must be a valid positive number`,
-			});
-			return;
+		if (modules.commissions) {
+			if (!Number.isFinite(commissionRate) || commissionRate < 0) {
+				toast.error("Invalid rate", {
+					description: `Commission rate must be a valid positive number`,
+				});
+				return;
+			}
+			if (commissionRate > MAX_RATE) {
+				toast.error("Rate too large", {
+					description: `Commission rate max allowed is ₹ ${MAX_RATE.toLocaleString("en-IN")}/sqft`,
+				});
+				return;
+			}
 		}
-		if (commissionRate > MAX_RATE) {
-			toast.error("Rate too large", {
-				description: `Commission rate max allowed is ₹ ${MAX_RATE.toLocaleString("en-IN")}/sqft`,
-			});
-			return;
-		}
+
 		setSaving(true);
 		try {
 			const res = await upsertAdvisorAssignment(projectId, {
 				advisor_id: advisorId,
-				commission_rate: commissionRate,
+				commission_rate: modules.commissions ? commissionRate : 0,
 			});
 			if (!res.success) {
 				toast.error("Failed to assign", { description: res.error });
@@ -114,23 +119,26 @@ export function ProjectAdvisorAssignments({
 
 	async function onSaveEdit() {
 		if (!editAdvisorId) return;
-		if (!Number.isFinite(editCommissionRate) || editCommissionRate < 0) {
-			toast.error("Invalid rate", {
-				description: `Commission rate must be a valid positive number`,
-			});
-			return;
+		if (modules.commissions) {
+			if (!Number.isFinite(editCommissionRate) || editCommissionRate < 0) {
+				toast.error("Invalid rate", {
+					description: `Commission rate must be a valid positive number`,
+				});
+				return;
+			}
+			if (editCommissionRate > MAX_RATE) {
+				toast.error("Rate too large", {
+					description: `Commission rate max allowed is ₹ ${MAX_RATE.toLocaleString("en-IN")}/sqft`,
+				});
+				return;
+			}
 		}
-		if (editCommissionRate > MAX_RATE) {
-			toast.error("Rate too large", {
-				description: `Commission rate max allowed is ₹ ${MAX_RATE.toLocaleString("en-IN")}/sqft`,
-			});
-			return;
-		}
+
 		setSaving(true);
 		try {
 			const res = await upsertAdvisorAssignment(projectId, {
 				advisor_id: editAdvisorId,
-				commission_rate: editCommissionRate,
+				commission_rate: modules.commissions ? editCommissionRate : 0,
 			});
 			if (!res.success) {
 				toast.error("Failed to update", { description: res.error });
@@ -146,7 +154,7 @@ export function ProjectAdvisorAssignments({
 	return (
 		<div className="space-y-4">
 			<div className="grid grid-cols-1 lg:grid-cols-5 gap-3 items-end">
-				<div className="lg:col-span-2">
+				<div className={modules.commissions ? "lg:col-span-2" : "lg:col-span-4"}>
 					<label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
 						Advisor
 					</label>
@@ -163,19 +171,21 @@ export function ProjectAdvisorAssignments({
 						</SelectContent>
 					</Select>
 					<p className="text-[11px] text-zinc-500 mt-1">
-						Assign a single commission rate for this advisor in this project.
+						Assign an advisor to this project for lead attribution.
 					</p>
 				</div>
 
-				<RateInput
-					label="Commission Rate (₹/sqft)"
-					value={commissionRate}
-					onChange={setCommissionRate}
-				/>
-				<div className="lg:col-span-5 flex justify-end">
-					<Button onClick={onAdd} disabled={saving || !advisorId} size="sm">
+				{modules.commissions && (
+					<RateInput
+						label="Commission Rate (₹/sqft)"
+						value={commissionRate}
+						onChange={setCommissionRate}
+					/>
+				)}
+				<div className={modules.commissions ? "lg:col-span-5 flex justify-end" : "lg:col-span-1 flex justify-end"}>
+					<Button onClick={onAdd} disabled={saving || !advisorId} size={modules.commissions ? "sm" : "default"} className={!modules.commissions ? "w-full" : ""}>
 						<Plus className="h-4 w-4 mr-2" />
-						Assign Advisor
+						Assign
 					</Button>
 				</div>
 			</div>
@@ -185,16 +195,18 @@ export function ProjectAdvisorAssignments({
 				<TableHeader>
 					<TableRow>
 						<TableHead>Advisor</TableHead>
-						<TableHead className="text-right">
-							Commission (₹/sqft)
-						</TableHead>
+						{modules.commissions && (
+							<TableHead className="text-right">
+								Commission (₹/sqft)
+							</TableHead>
+						)}
 						<TableHead className="text-right">Actions</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
 					{assignments.length === 0 ? (
 						<TableRow>
-							<TableCell colSpan={3} className="text-sm text-zinc-500">
+							<TableCell colSpan={modules.commissions ? 3 : 2} className="text-sm text-zinc-500">
 								No advisors assigned yet.
 							</TableCell>
 						</TableRow>
@@ -210,12 +222,14 @@ export function ProjectAdvisorAssignments({
 											</span>
 										) : null}
 									</TableCell>
-									<TableCell className="text-right">
-										<InlineRateInput
-											value={editCommissionRate}
-											onChange={setEditCommissionRate}
-										/>
-									</TableCell>
+									{modules.commissions && (
+										<TableCell className="text-right">
+											<InlineRateInput
+												value={editCommissionRate}
+												onChange={setEditCommissionRate}
+											/>
+										</TableCell>
+									)}
 									<TableCell className="text-right">
 										<div className="flex items-center justify-end gap-1">
 											<Button
@@ -249,11 +263,13 @@ export function ProjectAdvisorAssignments({
 										</span>
 									) : null}
 								</TableCell>
-								<TableCell className="text-right">
-									{formatCurrencyShort(
-										Number((a as any).commission_rate ?? 0)
-									)}
-								</TableCell>
+								{modules.commissions && (
+									<TableCell className="text-right">
+										{formatCurrencyShort(
+											Number((a as any).commission_rate ?? 0)
+										)}
+									</TableCell>
+								)}
 								<TableCell className="text-right">
 									<div className="flex items-center justify-end gap-1">
 										<Button

@@ -16,14 +16,16 @@ export default async function CustomerDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [customer, docs, plotSales, modules] = await Promise.all([
-    getCustomerById(id),
+  
+  // Use sequential fetch if needed, or wrap in try/catch to debug
+  const customer = await getCustomerById(id);
+  if (!customer) notFound();
+
+  const [docs, plotSales, modules] = await Promise.all([
     getCustomerDocuments(id),
     getCustomerPlotSales(id),
     getModuleSettings(),
   ]);
-
-  if (!customer) notFound();
 
   return (
     <div className="space-y-6">
@@ -87,7 +89,7 @@ export default async function CustomerDetailPage({
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
                             <div className="text-sm font-semibold text-zinc-900 truncate">
-                              {sale.plots?.plot_number ?? "—"} • {sale.plots?.projects?.name ?? "—"}
+                              {sale.plots?.plot_number ?? "—"} • {(sale as any).project_name ?? sale.plots?.projects?.name ?? "—"}
                             </div>
                             <div className="text-[11px] text-zinc-500">
                               Phase: {sale.sale_phase ?? "—"}
@@ -95,7 +97,7 @@ export default async function CustomerDetailPage({
                           </div>
                           {modules.payments && (
                             <Badge variant="secondary" className="text-[10px] shrink-0">
-                              {sale.amount_paid >= (sale.total_sale_amount ?? 0) ? "Paid" : "Due"}
+                              {(sale.amount_paid ?? 0) >= (sale.total_sale_amount ?? 0) ? "Paid" : "Due"}
                             </Badge>
                           )}
                         </div>

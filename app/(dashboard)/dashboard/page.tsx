@@ -374,11 +374,11 @@ export default async function DashboardPage({
 				</CardContent>
 			</Card>
 
-			{modules.sales && stats.salesByMonth.length > 0 && (
+			{modules.reports && modules.sales && stats.salesByMonth.length > 0 && (
 				<Card>
 					<CardHeader>
 						<CardTitle className="text-sm font-bold flex items-center gap-2">
-							<BarChart3 className="h-4 w-4" /> Sales Trend by Month
+							<BarChart3 className="h-4 w-4" /> Reports: Sales Trend by Month
 						</CardTitle>
 					</CardHeader>
 					<CardContent>

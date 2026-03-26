@@ -168,7 +168,7 @@ export async function updateCustomer(
 		return { success: false, error: "Advisor context missing" };
 	}
 
-	const { data: updatedCustomer, error } = await supabase
+	let query = supabase
 		.from("customers")
 		.update({
 			name: parsed.data.name,
@@ -184,9 +184,14 @@ export async function updateCustomer(
 			is_active: parsed.data.is_active,
 			updated_at: new Date().toISOString(),
 		})
-		.eq("id", id)
-		// Advisors can only update their own customers
-		.eq(role === "advisor" ? "advisor_id" : "id", role === "advisor" ? (advisorId ?? null) : id)
+		.eq("id", id);
+
+	// Advisors can only update their own customers (Source OR Assigned)
+	if (role === "advisor") {
+		query = query.or(`advisor_id.eq.${advisorId},source_advisor_id.eq.${advisorId}`);
+	}
+
+	const { data: updatedCustomer, error } = await query
 		.select("id, name, phone, birth_date")
 		.single();
 
@@ -231,11 +236,11 @@ export async function getCustomers() {
 	// Admin and Advisor: only see active (Closed Won) customers
 	query = query.eq("is_active", true);
 
-	// If role is advisor, only show their own
+	// If role is advisor, only show their own (Source OR Assigned)
 	if (role === "advisor") {
 		const advisorId = (user?.user_metadata as any)?.advisor_id;
 		if (advisorId) {
-			query = query.eq("advisor_id", advisorId);
+			query = query.or(`advisor_id.eq.${advisorId},source_advisor_id.eq.${advisorId}`);
 		}
 	}
 
@@ -261,10 +266,16 @@ export async function getCustomerById(id: string) {
 	let query = supabase
 		.from("customers")
 		.select("*")
-		.eq("id", id);
+		.eq("id", id)
+		.eq("is_active", true);
 
-	// Only return active (Closed Won) customers
-	query = query.eq("is_active", true);
+	// Enforce advisor visibility (Source OR Assigned)
+	if (role === "advisor") {
+		const advisorId = (user.user_metadata as any)?.advisor_id;
+		if (advisorId) {
+			query = query.or(`advisor_id.eq.${advisorId},source_advisor_id.eq.${advisorId}`);
+		}
+	}
 
 	const { data, error } = await query.single();
 	if (error) return null;

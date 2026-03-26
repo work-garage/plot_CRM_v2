@@ -68,7 +68,7 @@ export default function LoginPage() {
 				suppressHydrationWarning
 				aria-hidden
 				className="absolute inset-0 bg-cover bg-center"
-				style={{ backgroundImage: "url('/bg.png')" }}
+				style={{ backgroundImage: "url('/bg.jpg')" }}
 			/>
 			<div className="relative z-10 min-h-screen flex justify-center sm:justify-center lg:justify-start px-4 sm:px-12 lg:px-20">
 				<div className="w-full sm:max-w-md sm:pt-0 sm:-translate-y-6 pt-20 sm:flex sm:items-center">

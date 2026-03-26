@@ -224,8 +224,8 @@ export default async function AdvisorDetailPage({
 										<TableHead>Plot</TableHead>
 										<TableHead>Project</TableHead>
 										<TableHead>Customer</TableHead>
-										<TableHead>Amount</TableHead>
-										<TableHead>Paid / Due</TableHead>
+										{modules.sales && <TableHead>Amount</TableHead>}
+										{modules.payments && <TableHead>Paid / Due</TableHead>}
 										<TableHead>Phase</TableHead>
 										<TableHead>Date</TableHead>
 									</TableRow>
@@ -236,12 +236,16 @@ export default async function AdvisorDetailPage({
 											<TableCell className="font-medium">{s.plot_number}</TableCell>
 											<TableCell>{s.project_name}</TableCell>
 											<TableCell>{s.customer_name}</TableCell>
-											<TableCell className="font-semibold">{formatCurrency(s.total_sale_amount)}</TableCell>
-											<TableCell>
-												<span className="text-green-600">{formatCurrency(s.amount_paid)}</span>
-												{" / "}
-												<span className="text-red-600">{formatCurrency(s.remaining_amount)}</span>
-											</TableCell>
+											{modules.sales && (
+												<TableCell className="font-semibold">{formatCurrency(s.total_sale_amount)}</TableCell>
+											)}
+											{modules.payments && (
+												<TableCell>
+													<span className="text-green-600">{formatCurrency(s.amount_paid)}</span>
+													{" / "}
+													<span className="text-red-600">{formatCurrency(s.remaining_amount)}</span>
+												</TableCell>
+											)}
 											<TableCell>
 												<Badge variant="secondary">
 													{phaseLabels[s.sale_phase] ?? s.sale_phase}
