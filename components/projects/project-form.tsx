@@ -61,7 +61,7 @@ export function ProjectForm({ mode, initialData }: ProjectFormProps) {
 		defaultValues: {
 			name: initialData?.name ?? "",
 			location: initialData?.location ?? "",
-			total_plots_count: initialData?.total_plots_count ?? 0,
+			total_plots_count: initialData?.total_plots_count ?? 1,
 			starting_plot_number: initialData?.starting_plot_number ?? 1,
 			builder_name: initialData?.builder_name ?? "",
 			segment: (initialData?.segment as any) ?? "Mid",

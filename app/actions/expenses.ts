@@ -59,9 +59,10 @@ export async function getExpenses() {
 	const role = (user?.user_metadata as any)?.role;
 	if (role !== "admin") return []; // Only admins see office expenses
 
+	// Fetch expenses without the relational join - project_id is still available for reference
 	const { data, error } = await supabase
 		.from("office_expenses")
-		.select("*, projects!project_id(id, name)")
+		.select("*")
 		.order("expense_date", { ascending: false });
 
 	if (error) throw new Error(error.message);

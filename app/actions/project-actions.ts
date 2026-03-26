@@ -263,9 +263,9 @@ export async function getProjectWithStats(
         token_date,
         sale_phase,
         plot_id,
-        plots!inner(plot_number),
-        customers!inner(name, source_advisor_id),
-        advisors!inner(name)
+        plots(plot_number),
+        customers(name, source_advisor_id),
+        advisors(name)
       `
 			)
 			.in("plot_id", plotIds)
@@ -297,26 +297,30 @@ export async function getProjectWithStats(
 		}
 	}
 
-	// Fetch lead stats for this project
-	let baseCustQuery = supabase.from("customers").select("*", { count: "exact", head: true }).eq("project_id", id);
+	// Fetch lead stats for this project via customer_project_interests
+	let baseIntQuery = supabase
+		.from("customer_project_interests")
+		.select("customer_id, customers!inner(lead_status)")
+		.eq("project_id", id);
+
 	if (role === "advisor" && advisorId) {
-		baseCustQuery = baseCustQuery.or(`advisor_id.eq.${advisorId},source_advisor_id.eq.${advisorId}`);
+		// Filter by advisor visibility via customers join
+		baseIntQuery = baseIntQuery.or(`customers.advisor_id.eq.${advisorId},customers.source_advisor_id.eq.${advisorId}`);
 	}
 
-	const [enquiryRes, wonRes, lostRes] = await Promise.all([
-		baseCustQuery,
-		baseCustQuery.eq("lead_status", "🎉 Closed Won"),
-		baseCustQuery.eq("lead_status", "❌ Closed Lost")
-	]);
+	const { data: intData } = await baseIntQuery;
+	const enquiryCount = intData?.length ?? 0;
+	const wonCount = (intData ?? []).filter((r: any) => r.customers?.lead_status === "🎉 Closed Won").length;
+	const lostCount = (intData ?? []).filter((r: any) => r.customers?.lead_status === "❌ Closed Lost").length;
 
 	return {
 		project,
 		plotCounts,
 		totalRevenue,
 		recentSales,
-		enquiryCount: enquiryRes.count || 0,
-		wonCount: wonRes.count || 0,
-		lostCount: lostRes.count || 0,
+		enquiryCount,
+		wonCount,
+		lostCount,
 	};
 }
 

@@ -233,8 +233,9 @@ export async function getCustomers() {
 		)
 		.order("name", { ascending: true });
 
-	// Admin and Advisor: only see active (Closed Won) customers
-	query = query.eq("is_active", true);
+	// Only show Closed Won enquiries as Customers
+	// (Closed Won = converted leads who actually bought — the true "customers")
+	query = query.eq("lead_status", "🎉 Closed Won");
 
 	// If role is advisor, only show their own (Source OR Assigned)
 	if (role === "advisor") {

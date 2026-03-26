@@ -205,7 +205,7 @@ export async function createEnquiryCustomer(
 		preferred_location: parsed.data.preferred_location || null,
 		bhk_size: parsed.data.bhk_size || null,
 		lead_source: parsed.data.lead_source || null,
-		lead_status: parsed.data.enquiry_status || "New Lead",
+		lead_status: parsed.data.enquiry_status || "🆕 New Lead — Contact Pending",
 	};
 
 	if (advisorId) {
@@ -278,7 +278,7 @@ export async function updateEnquiryCustomer(
 		preferred_location: parsed.data.preferred_location || null,
 		bhk_size: parsed.data.bhk_size || null,
 		lead_source: parsed.data.lead_source || null,
-		lead_status: parsed.data.enquiry_status || "New Lead",
+		lead_status: parsed.data.enquiry_status || "🆕 New Lead — Contact Pending",
 	};
 
 	// Admin can reassign advisor

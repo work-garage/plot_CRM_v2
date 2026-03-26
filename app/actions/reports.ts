@@ -68,13 +68,23 @@ export async function getReportStats(filters?: ReportFilters) {
 	// 2. Payments (for collections timeline)
 	let paymentsQuery = supabase
 		.from("payments")
-		.select("amount, payment_date, is_confirmed, plot_sales(advisor_id, customers(source_advisor_id))")
+		.select("amount, payment_date, is_confirmed, sale_id")
 		.eq("is_confirmed", true);
 
 	if (role === "advisor" && advisorId) {
-		paymentsQuery = paymentsQuery.or(
-			`plot_sales.advisor_id.eq.${advisorId},plot_sales.customers.source_advisor_id.eq.${advisorId}`
-		);
+		// Pre-fetch sale IDs for this advisor (Sourced OR Assigned) to avoid unsupported cross-table .or()
+		const { data: advisorSales } = await supabase
+			.from("plot_sales")
+			.select("id")
+			.eq("is_cancelled", false)
+			.or(`advisor_id.eq.${advisorId},customers.source_advisor_id.eq.${advisorId}`);
+		const advisorSaleIds = (advisorSales ?? []).map((s: any) => s.id);
+		if (advisorSaleIds.length > 0) {
+			paymentsQuery = paymentsQuery.in("sale_id", advisorSaleIds);
+		} else {
+			// No sales for this advisor — return empty immediately to avoid leaking data
+			paymentsQuery = paymentsQuery.eq("sale_id", "00000000-0000-0000-0000-000000000000");
+		}
 	}
 
 	const { data: payments } = await paymentsQuery;
