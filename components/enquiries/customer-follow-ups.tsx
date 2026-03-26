@@ -25,6 +25,27 @@ export function CustomerFollowUps({ customerId }: { customerId: string }) {
         next_follow_up_date: "",
     });
 
+    // Compute cumulative state from all previous follow-ups
+    function getCumulativeState(logs: any[]) {
+        return {
+            whatsapp_done: logs.some(f => f.whatsapp_done),
+            call_done: logs.some(f => f.call_done),
+            site_visit_done: logs.some(f => f.site_visit_done),
+        };
+    }
+
+    function openForm() {
+        const cumulative = getCumulativeState(followUps);
+        setForm({
+            ...cumulative,
+            customer_mood: "Interested",
+            notes: "",
+            follow_up_date: new Date().toISOString().slice(0, 10),
+            next_follow_up_date: "",
+        });
+        setShowForm(true);
+    }
+
     useEffect(() => {
         if (!customerId) return;
         load();
@@ -56,12 +77,6 @@ export function CustomerFollowUps({ customerId }: { customerId: string }) {
             if (res.success) {
                 toast.success("Follow-up logged successfully");
                 setShowForm(false);
-                setForm({
-                    whatsapp_done: false, call_done: false, site_visit_done: false,
-                    customer_mood: "Interested", notes: "",
-                    follow_up_date: new Date().toISOString().slice(0, 10),
-                    next_follow_up_date: "",
-                });
                 await load();
             } else {
                 toast.error(res.error || "Failed to save");
@@ -80,7 +95,7 @@ export function CustomerFollowUps({ customerId }: { customerId: string }) {
             <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-sm">Interaction History</h3>
                 {!showForm && (
-                    <Button size="sm" variant="outline" onClick={() => setShowForm(true)}>
+                    <Button size="sm" variant="outline" onClick={openForm}>
                         <Plus className="h-4 w-4 mr-1" /> Log Follow-up
                     </Button>
                 )}

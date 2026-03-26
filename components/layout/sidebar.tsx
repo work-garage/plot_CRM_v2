@@ -102,7 +102,7 @@ export function Sidebar({ open, onClose, items }: SidebarProps) {
         <div className="px-6 py-4 border-t border-zinc-900 bg-zinc-950/50">
           <p className="text-[10px] uppercase font-bold text-zinc-600 tracking-widest mb-1">Source</p>
           <p className="text-[11px] text-zinc-400 font-medium">
-            © {new Date().getFullYear()} S-INFRA CRM
+            © {new Date().getFullYear()} EstateFlow CRM
           </p>
         </div>
 

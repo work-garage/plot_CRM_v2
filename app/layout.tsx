@@ -17,22 +17,22 @@ export const viewport = {
 
 export const metadata: Metadata = {
 	title: {
-		default: "S-INFRA CRM | Real Estate & Plot Management",
-		template: "%s | S-INFRA CRM",
+		default: "EstateFlow CRM | Real Estate & Plot Management",
+		template: "%s | EstateFlow CRM",
 	},
 	description:
-		"Advanced CRM system for real estate plot management, advisor commissions, and customer follow-ups by S-INFRA.",
+		"EstateFlow CRM — advanced real estate plot management, advisor tracking, and customer follow-up system.",
 	keywords: [
 		"real estate",
 		"crm",
 		"plot management",
-		"s-infra",
+		"estateflow",
 		"nagpur",
 		"advisor commissions",
 	],
-	authors: [{ name: "S-INFRA" }],
-	creator: "S-INFRA",
-	publisher: "S-INFRA",
+	authors: [{ name: "EstateFlow" }],
+	creator: "EstateFlow",
+	publisher: "EstateFlow",
 	icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
@@ -41,17 +41,17 @@ export const metadata: Metadata = {
     apple: "/favicon.svg",
   },
   openGraph: {
-    title: "S-INFRA CRM | Real Estate & Plot Management",
-    description: "Advanced CRM system for real estate plot management, advisor commissions, and customer follow-ups by S-INFRA.",
-    url: "https://s-infra-crm.vercel.app",
-    siteName: "S-INFRA CRM",
+    title: "EstateFlow CRM | Real Estate & Plot Management",
+    description: "EstateFlow CRM — advanced real estate plot management, advisor tracking, and customer follow-up system.",
+    url: "https://estateflow-crm.vercel.app",
+    siteName: "EstateFlow CRM",
     locale: "en_US",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "S-INFRA CRM | Real Estate & Plot Management",
-    description: "Advanced CRM system for real estate plot management, advisor commissions, and customer follow-ups by S-INFRA.",
+    title: "EstateFlow CRM | Real Estate & Plot Management",
+    description: "EstateFlow CRM — advanced real estate plot management, advisor tracking, and customer follow-up system.",
   },
 };
 

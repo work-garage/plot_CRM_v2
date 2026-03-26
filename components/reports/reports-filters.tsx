@@ -23,16 +23,24 @@ export function ReportsFilters({ basePath = "/reports" }: { basePath?: string })
 		const params = new URLSearchParams();
 		if (start) params.set("from", start);
 		if (end) params.set("to", end);
+		const url = params.toString() ? `${basePath}?${params.toString()}` : basePath;
 		startTransition(() => {
-			router.push(`${basePath}?${params.toString()}`);
+			router.replace(url, { scroll: false });
 		});
 	}
 
+	// Always compute based on the current date at time of render
 	const now = new Date();
 	const thisMonthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
 	const thisMonthEnd = now.toISOString().slice(0, 10);
 	const thisYearStart = `${now.getFullYear()}-01-01`;
 	const thisYearEnd = thisMonthEnd;
+
+	// Last month calculations
+	const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+	const lastMonthStart = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, "0")}-01`;
+	const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
+	const isLastMonth = from === lastMonthStart && to === lastMonthEnd;
 
 	return (
 		<div className="flex flex-col sm:flex-row flex-wrap gap-4 items-start sm:items-center">
@@ -61,13 +69,8 @@ export function ReportsFilters({ basePath = "/reports" }: { basePath?: string })
 				</Button>
 				<Button
 					size="sm"
-					variant="outline"
-					onClick={() => {
-						const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1);
-						const start = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, "0")}-01`;
-						const end = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
-						setRange(start, end);
-					}}
+					variant={isLastMonth ? "default" : "outline"}
+					onClick={() => setRange(lastMonthStart, lastMonthEnd)}
 				>
 					Last month
 				</Button>
