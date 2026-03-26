@@ -13,6 +13,7 @@ export function deriveTaskStatus(f: {
 export type ContactStatus = {
 	label: string;
 	color: string; // Tailwind classes for badge background/text/border
+	urgencyColor: string; // Tailwind border color for the urgency ring
 	sortOrder: number; // 1 = highest urgency (shown first in Active Leads)
 	siteVisitDate: string | null;
 };
@@ -30,13 +31,25 @@ export type ContactStatus = {
 export function getContactStatus(enq: {
 	lead_status: string;
 	site_visit_date?: string | null;
+	updated_at?: string;
 }): ContactStatus {
 	const s = enq.lead_status || "🆕 New Lead — Contact Pending";
+
+	// Calculate urgency ring
+	let urgencyColor = "border-zinc-200"; // default
+	if (enq.updated_at && s !== "🎉 Closed Won" && s !== "❌ Closed Lost") {
+		const last = new Date(enq.updated_at).getTime();
+		const now = Date.now();
+		const diffDays = (now - last) / (1000 * 60 * 60 * 24);
+		if (diffDays >= 4) urgencyColor = "border-red-500 ring-2 ring-red-100 ring-offset-1";
+		else if (diffDays >= 2) urgencyColor = "border-yellow-500 ring-2 ring-yellow-100 ring-offset-1";
+	}
 
 	if (s === "🎉 Closed Won") {
 		return {
 			label: "🎉 Closed Won",
 			color: "bg-green-50 text-green-700 border-green-200",
+			urgencyColor: "border-green-200",
 			sortOrder: 99,
 			siteVisitDate: null,
 		};
@@ -45,6 +58,7 @@ export function getContactStatus(enq: {
 		return {
 			label: "❌ Closed Lost",
 			color: "bg-red-50 text-red-700 border-red-200",
+			urgencyColor: "border-red-200",
 			sortOrder: 99,
 			siteVisitDate: null,
 		};
@@ -58,6 +72,7 @@ export function getContactStatus(enq: {
 		return {
 			label: `✅ Contact Done — Site Visit Pending${dateStr ? ` · ${dateStr}` : ""}`,
 			color: "bg-orange-50 text-orange-700 border-orange-200",
+			urgencyColor,
 			sortOrder: 1,
 			siteVisitDate: svDate,
 		};
@@ -67,6 +82,7 @@ export function getContactStatus(enq: {
 		return {
 			label: "🏠 Site Visit Done — Negotiation & Answer Pending",
 			color: "bg-purple-50 text-purple-700 border-purple-200",
+			urgencyColor,
 			sortOrder: 2,
 			siteVisitDate: null,
 		};
@@ -76,6 +92,7 @@ export function getContactStatus(enq: {
 		return {
 			label: "📞 Contact Pending",
 			color: "bg-sky-50 text-sky-700 border-sky-200",
+			urgencyColor,
 			sortOrder: 3,
 			siteVisitDate: null,
 		};
@@ -85,6 +102,7 @@ export function getContactStatus(enq: {
 	return {
 		label: "🆕 New Lead — Contact Pending",
 		color: "bg-blue-50 text-blue-700 border-blue-200",
+		urgencyColor,
 		sortOrder: 4,
 		siteVisitDate: null,
 	};

@@ -52,6 +52,13 @@ export async function getExpenses() {
 	const supabase = await createClient();
 	if (!supabase) return [];
 
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	const role = (user?.user_metadata as any)?.role;
+	if (role !== "admin") return []; // Only admins see office expenses
+
 	const { data, error } = await supabase
 		.from("office_expenses")
 		.select("*, projects!project_id(id, name)")

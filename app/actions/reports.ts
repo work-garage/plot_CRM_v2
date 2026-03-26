@@ -28,11 +28,36 @@ export async function getReportStats(filters?: ReportFilters) {
 	const start = filters?.startDate ? toDateOnly(filters.startDate) : undefined;
 	const end = filters?.endDate ? toDateOnly(filters.endDate) : undefined;
 
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+	const role = (user?.user_metadata as any)?.role;
+	let advisorId: string | null = null;
+
+	if (role === "advisor") {
+		const { data: adv } = await supabase
+			.from("advisors")
+			.select("id")
+			.eq("auth_user_id", user!.id)
+			.single();
+		advisorId = adv?.id ?? null;
+	}
+
 	// 1. Sales
-	const { data: sales } = await supabase
+	let salesQuery = supabase
 		.from("plot_sales")
-		.select("id, customer_id, total_sale_amount, amount_paid, remaining_amount, created_at, plots(project_id, projects(id, name)), sale_phase")
+		.select(
+			"id, customer_id, total_sale_amount, amount_paid, remaining_amount, created_at, plots(project_id, projects(id, name)), customers(source_advisor_id), sale_phase"
+		)
 		.eq("is_cancelled", false);
+
+	if (role === "advisor" && advisorId) {
+		salesQuery = salesQuery.or(
+			`advisor_id.eq.${advisorId},customers.source_advisor_id.eq.${advisorId}`
+		);
+	}
+
+	const { data: sales } = await salesQuery;
 
 	const filteredSales = (sales ?? []).filter((s: any) => inRange(s.created_at ?? "", start, end));
 
@@ -41,26 +66,45 @@ export async function getReportStats(filters?: ReportFilters) {
 	const totalOutstanding = filteredSales.reduce((sum, s) => sum + Number(s.remaining_amount ?? 0), 0);
 
 	// 2. Payments (for collections timeline)
-	const { data: payments } = await supabase
+	let paymentsQuery = supabase
 		.from("payments")
-		.select("amount, payment_date, is_confirmed")
+		.select("amount, payment_date, is_confirmed, plot_sales(advisor_id, customers(source_advisor_id))")
 		.eq("is_confirmed", true);
+
+	if (role === "advisor" && advisorId) {
+		paymentsQuery = paymentsQuery.or(
+			`plot_sales.advisor_id.eq.${advisorId},plot_sales.customers.source_advisor_id.eq.${advisorId}`
+		);
+	}
+
+	const { data: payments } = await paymentsQuery;
 
 	const filteredPayments = (payments ?? []).filter((p: any) => inRange(p.payment_date ?? "", start, end));
 	const totalPaymentsCollected = filteredPayments.reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
 
-	// 3. Expenses
-	const { data: expenses } = await supabase
-		.from("office_expenses")
-		.select("amount, expense_date, category");
+	// 3. Expenses (Advisors see nothing)
+	let totalExpenses = 0;
+	let filteredExpenses: any[] = [];
+	if (role !== "advisor") {
+		const { data: expenses } = await supabase
+			.from("office_expenses")
+			.select("amount, expense_date, category");
 
-	const filteredExpenses = (expenses ?? []).filter((e: any) => inRange(e.expense_date ?? "", start, end));
-	const totalExpenses = filteredExpenses.reduce((sum, e) => sum + Number(e.amount ?? 0), 0);
+		filteredExpenses = (expenses ?? []).filter((e: any) =>
+			inRange(e.expense_date ?? "", start, end)
+		);
+		totalExpenses = filteredExpenses.reduce(
+			(sum, e) => sum + Number(e.amount ?? 0),
+			0
+		);
+	}
 
 	// 4. Advisor commissions
-	const { data: advisors } = await supabase
-		.from("advisors")
-		.select("id, name, advisor_commissions(total_commission_amount, amount_paid)");
+	let advisorsQuery = supabase.from("advisors").select("id, name, advisor_commissions(total_commission_amount, amount_paid)");
+	if (role === "advisor" && advisorId) {
+		advisorsQuery = advisorsQuery.eq("id", advisorId);
+	}
+	const { data: advisors } = await advisorsQuery;
 
 	const { data: commissionPayments, error: commissionPaymentsErr } = await supabase
 		.from("advisor_commission_payments")
@@ -163,9 +207,11 @@ export async function getReportStats(filters?: ReportFilters) {
 	};
 
 	// 11. Customer count (new in period)
-	const { data: customers } = await supabase
-		.from("customers")
-		.select("created_at");
+	let customersQuery = supabase.from("customers").select("created_at");
+	if (role === "advisor" && advisorId) {
+		customersQuery = customersQuery.or(`advisor_id.eq.${advisorId},source_advisor_id.eq.${advisorId}`);
+	}
+	const { data: customers } = await customersQuery;
 
 	const newCustomersInPeriod = (customers ?? []).filter((c: any) => inRange(c.created_at ?? "", start, end)).length;
 
@@ -210,9 +256,11 @@ export async function getReportStats(filters?: ReportFilters) {
 	);
 
 	// 13. Base Lead Stats (always available)
-	const { data: allCustomers } = await supabase
-		.from("customers")
-		.select("id, lead_status, is_active");
+	let allCustomersQuery = supabase.from("customers").select("id, lead_status, is_active");
+	if (role === "advisor" && advisorId) {
+		allCustomersQuery = allCustomersQuery.or(`advisor_id.eq.${advisorId},source_advisor_id.eq.${advisorId}`);
+	}
+	const { data: allCustomers } = await allCustomersQuery;
 
 	const baseLeadStats = {
 		total: allCustomers?.length ?? 0,
@@ -284,6 +332,11 @@ export async function getProjectAnalytics(projectId: string) {
 		.select("id, plot_number, status, size_sqft, rate_per_sqft")
 		.eq("project_id", projectId);
 
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+	const role = (user?.user_metadata as any)?.role;
+
 	const plotIds = (plots ?? []).map((p: any) => p.id);
 	const total = plots?.length ?? 0;
 	const sold = (plots ?? []).filter(
@@ -291,11 +344,26 @@ export async function getProjectAnalytics(projectId: string) {
 	).length;
 	const available = (plots ?? []).filter((p: any) => p.status === "available").length;
 
-	const { data: sales } = await supabase
+	let salesQuery = supabase
 		.from("plot_sales")
-		.select("id, total_sale_amount, amount_paid, remaining_amount, sold_by_admin, advisors(name)")
+		.select("id, total_sale_amount, amount_paid, remaining_amount, sold_by_admin, advisors(name), customers(source_advisor_id)")
 		.in("plot_id", plotIds)
 		.eq("is_cancelled", false);
+
+	if (role === "advisor") {
+		const { data: adv } = await supabase
+			.from("advisors")
+			.select("id")
+			.eq("auth_user_id", user!.id)
+			.single();
+		if (adv?.id) {
+			salesQuery = salesQuery.or(`advisor_id.eq.${adv.id},customers.source_advisor_id.eq.${adv.id}`);
+		} else {
+			return null; // Restricted
+		}
+	}
+
+	const { data: sales } = await salesQuery;
 
 	const totalRevenue = (sales ?? []).reduce((sum: number, s: any) => sum + Number(s.amount_paid ?? 0), 0);
 	const totalSalesValue = (sales ?? []).reduce((sum: number, s: any) => sum + Number(s.total_sale_amount ?? 0), 0);

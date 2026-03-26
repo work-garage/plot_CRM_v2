@@ -7,10 +7,18 @@ export async function getCommissions() {
 	const supabase = await createClient();
 	if (!supabase) return [];
 
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	const role = (user?.user_metadata as any)?.role;
+
 	const baseSelect = `
       *,
       advisors(name, code),
       plot_sales(
+        id,
+        advisor_id,
         total_sale_amount,
         amount_paid,
         plots(plot_number, size_sqft, rate_per_sqft, projects(name))
@@ -30,6 +38,8 @@ export async function getCommissions() {
       *,
       advisors(name, code),
       plot_sales(
+        id,
+        advisor_id,
         total_sale_amount,
         amount_paid,
         plots(plot_number, size_sqft, rate_per_sqft, projects(name))
@@ -47,10 +57,31 @@ export async function getCommissions() {
       )
     `;
 
-	const { data: dataWithExtra, error: errWithExtra } = await supabase
-		.from("advisor_commissions")
-		.select(extraSelect)
-		.order("created_at", { ascending: false });
+	let query = supabase.from("advisor_commissions").select(`
+       ${extraSelect},
+       plot_sales!inner(
+         customers!inner(source_advisor_id)
+       )
+    `);
+
+	if (role === "advisor") {
+		const { data: adv } = await supabase
+			.from("advisors")
+			.select("id")
+			.eq("auth_user_id", user!.id)
+			.single();
+		if (adv?.id) {
+			// Sourced OR Assigned
+			query = query.or(`advisor_id.eq.${adv.id},plot_sales.customers.source_advisor_id.eq.${adv.id}`);
+		} else {
+			return [];
+		}
+	}
+
+	const { data: dataWithExtra, error: errWithExtra } = await query.order(
+		"created_at",
+		{ ascending: false }
+	);
 	if (!errWithExtra) return dataWithExtra || [];
 
 	const msg = (errWithExtra.message || "").toLowerCase();

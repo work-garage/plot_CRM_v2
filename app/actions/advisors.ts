@@ -289,7 +289,7 @@ export async function getAdvisorAnalytics(
 	// Sourcing vs Assigned logic: Advisors see enquiries they sourced OR were assigned to.
 	// We need to fetch sales and commissions based on these visible customers.
 	
-	// 1. Fetch sales where advisor is assigned
+	// 1. Fetch sales: Sourced OR Assigned
 	const { data: sales } = await supabase
 		.from("plot_sales")
 		.select(
@@ -301,10 +301,10 @@ export async function getAdvisorAnalytics(
       sale_phase,
       token_date,
       plots(plot_number, projects(name)),
-      customers(name)
+      customers!inner(id, name, source_advisor_id)
     `
 		)
-		.eq("advisor_id", advisorId)
+		.or(`advisor_id.eq.${advisorId},customers.source_advisor_id.eq.${advisorId}`)
 		.eq("is_cancelled", false)
 		.order("created_at", { ascending: false });
 
@@ -316,14 +316,15 @@ export async function getAdvisorAnalytics(
       total_commission_amount,
       amount_paid,
       remaining_commission,
-      plot_sales(
+      plot_sales!inner(
         total_sale_amount,
         amount_paid,
-        plots(plot_number, size_sqft, rate_per_sqft)
+        plots(plot_number, size_sqft, rate_per_sqft),
+        customers!inner(source_advisor_id)
       )
     `
 		)
-		.eq("advisor_id", advisorId)
+		.or(`advisor_id.eq.${advisorId},plot_sales.customers.source_advisor_id.eq.${advisorId}`)
 		.order("created_at", { ascending: false });
 
 	const salesList = (sales ?? []).map((s: any) => ({
@@ -405,8 +406,8 @@ export async function getAdvisorsWithLeadStats() {
 		.from("advisors")
 		.select(`
 			*,
-			assigned_customers:customers!advisor_id(lead_status),
-			sourced_customers:customers!source_advisor_id(lead_status)
+			assigned_customers:customers!advisor_id(id, lead_status),
+			sourced_customers:customers!source_advisor_id(id, lead_status)
 		`)
 		.order("name", { ascending: true });
 
@@ -416,18 +417,21 @@ export async function getAdvisorsWithLeadStats() {
 	}
 
 	return (advisors || []).map(adv => {
-		const assigned = adv.assigned_customers || [];
-		const sourced = adv.sourced_customers || [];
+		const assigned = (adv.assigned_customers || []) as any[];
+		const sourced = (adv.sourced_customers || []) as any[];
 		
-		// Combine and deduplicate if necessary, but usually lead_status is just a status.
-		// For counts, we can just merge.
-		const allLeads = [...assigned, ...sourced];
+		// Use Map or Set to deduplicate leads by ID if they occur in both lists
+		const leadMap = new Map<string, string>();
+		assigned.forEach(l => { if (l.id) leadMap.set(l.id, l.lead_status); });
+		sourced.forEach(l => { if (l.id) leadMap.set(l.id, l.lead_status); });
+		
+		const uniqueLeads = Array.from(leadMap.values());
 		
 		return {
 			...adv,
-			assignedCount: allLeads.length,
-			wonCount: allLeads.filter((l: any) => l.lead_status === "🎉 Closed Won").length,
-			lostCount: allLeads.filter((l: any) => l.lead_status === "❌ Closed Lost").length,
+			assignedCount: uniqueLeads.length,
+			wonCount: uniqueLeads.filter((status: string) => status === "🎉 Closed Won").length,
+			lostCount: uniqueLeads.filter((status: string) => status === "❌ Closed Lost").length,
 		};
 	});
 }

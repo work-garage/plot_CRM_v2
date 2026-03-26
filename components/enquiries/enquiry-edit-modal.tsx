@@ -139,8 +139,8 @@ export function EnquiryEditModal({
 
 	if (!enquiry || !form) return null;
 
-	const isWon = enquiry.lead_status === "Closed Won";
-	const isLost = enquiry.lead_status === "Closed Lost";
+	const isWon = enquiry.lead_status?.includes("Closed Won");
+	const isLost = enquiry.lead_status?.includes("Closed Lost");
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>

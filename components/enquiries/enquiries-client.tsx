@@ -269,7 +269,12 @@ function EnquiryTableRows({
 								<TableCell>
 									<div className="min-w-[140px]">
 										<div className="flex items-center gap-2">
-											<User className="h-4 w-4 text-zinc-400 shrink-0" />
+											<div className={cn(
+												"h-7 w-7 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+												cs.urgencyColor
+											)}>
+												<User className="h-4 w-4 text-zinc-400" />
+											</div>
 											<div className="font-semibold text-sm truncate">{enq.name}</div>
 										</div>
 										<div className="text-xs text-zinc-500 font-mono mt-0.5">{enq.phone}</div>

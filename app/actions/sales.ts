@@ -261,7 +261,8 @@ export async function getSales() {
 			.eq("auth_user_id", user!.id)
 			.single();
 		if (adv?.id) {
-			q = q.eq("advisor_id", adv.id);
+			// Filter: sales where the advisor is either the assigned closer OR the customer source.
+			q = q.or(`advisor_id.eq.${adv.id},customers.source_advisor_id.eq.${adv.id}`);
 		} else {
 			return [];
 		}
@@ -283,7 +284,13 @@ export async function getSaleById(id: string) {
 	const supabase = await createClient();
 	if (!supabase) return null;
 
-	const { data, error } = await supabase
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	const role = (user?.user_metadata as any)?.role;
+
+	let q = supabase
 		.from("plot_sales")
 		.select(
 			`
@@ -293,9 +300,23 @@ export async function getSaleById(id: string) {
       advisors(*)
     `
 		)
-		.eq("id", id)
-		.single();
+		.eq("id", id);
 
+	// Advisor Security: can only see if closer OR source
+	if (role === "advisor") {
+		const { data: adv } = await supabase
+			.from("advisors")
+			.select("id")
+			.eq("auth_user_id", user!.id)
+			.single();
+		if (adv?.id) {
+			q = q.or(`advisor_id.eq.${adv.id},customers.source_advisor_id.eq.${adv.id}`);
+		} else {
+			return null;
+		}
+	}
+
+	const { data, error } = await q.single();
 	if (error) return null;
 	return data;
 }
@@ -339,7 +360,8 @@ export async function getCustomerPlotSales(customerId: string) {
 			.eq("auth_user_id", user.id)
 			.single();
 		if (adv?.id) {
-			query = query.eq("advisor_id", adv.id);
+			// Visibility: Sourced OR Assigned
+			query = query.or(`advisor_id.eq.${adv.id},customers.source_advisor_id.eq.${adv.id}`);
 		} else {
 			return [];
 		}

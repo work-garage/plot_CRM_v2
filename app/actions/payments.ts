@@ -165,7 +165,7 @@ export async function getPayments(filters?: PaymentsFilter) {
 		)
 		.order("payment_date", { ascending: false });
 
-	// Advisor: only see payments from their own sales
+	// Advisor: only see payments from their own sales (Sourced OR Assigned)
 	if (role === "advisor") {
 		// Always look up from DB — never trust JWT metadata which can be stale
 		const { data: adv } = await supabase
@@ -174,9 +174,8 @@ export async function getPayments(filters?: PaymentsFilter) {
 			.eq("auth_user_id", user!.id)
 			.single();
 		if (adv?.id) {
-			// Filter: payments where the linked sale belongs to this advisor
-			// We do this via the nested plot_sales.advisor_id filter
-			q = (q as any).eq("plot_sales.advisor_id", adv.id);
+			// Filter: payments where the linked sale or customer belongs to this advisor
+			q = q.or(`plot_sales.advisor_id.eq.${adv.id},customers.source_advisor_id.eq.${adv.id}`);
 		} else {
 			return [];
 		}

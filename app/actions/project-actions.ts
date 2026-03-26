@@ -203,6 +203,11 @@ export async function getProjectWithStats(
 	const supabase = await createClient();
 	if (!supabase) return null;
 
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+	const role = (user?.user_metadata as any)?.role;
+
 	// Fetch project
 	const { data: project, error: projectError } = await supabase
 		.from("projects")
@@ -212,7 +217,7 @@ export async function getProjectWithStats(
 
 	if (projectError || !project) return null;
 
-	// Fetch all plots for this project
+	// Fetch all plots for this project (Inventory view is usually public to advisors)
 	const { data: plots } = await supabase
 		.from("plots")
 		.select("id, status")
@@ -238,8 +243,18 @@ export async function getProjectWithStats(
 	let totalRevenue = 0;
 	let recentSales: ProjectWithStats["recentSales"] = [];
 
+	let advisorId: string | null = null;
+	if (role === "advisor") {
+		const { data: adv } = await supabase
+			.from("advisors")
+			.select("id")
+			.eq("auth_user_id", user!.id)
+			.single();
+		advisorId = adv?.id ?? null;
+	}
+
 	if (plotIds.length > 0) {
-		const { data: sales } = await supabase
+		let salesQuery = supabase
 			.from("plot_sales")
 			.select(
 				`
@@ -249,14 +264,20 @@ export async function getProjectWithStats(
         sale_phase,
         plot_id,
         plots!inner(plot_number),
-        customers!inner(name),
+        customers!inner(name, source_advisor_id),
         advisors!inner(name)
       `
 			)
 			.in("plot_id", plotIds)
 			.eq("is_cancelled", false)
-			.order("created_at", { ascending: false })
-			.limit(5);
+			.order("created_at", { ascending: false });
+
+		if (role === "advisor" && advisorId) {
+			// Visibility: Sourced OR Assigned
+			salesQuery = salesQuery.or(`advisor_id.eq.${advisorId},customers.source_advisor_id.eq.${advisorId}`);
+		}
+
+		const { data: sales } = await salesQuery.limit(5);
 
 		if (sales) {
 			totalRevenue = sales.reduce(
@@ -277,31 +298,25 @@ export async function getProjectWithStats(
 	}
 
 	// Fetch lead stats for this project
-	const { count: enquiryCount } = await supabase
-		.from("customers")
-		.select("*", { count: "exact", head: true })
-		.eq("project_id", id);
+	let baseCustQuery = supabase.from("customers").select("*", { count: "exact", head: true }).eq("project_id", id);
+	if (role === "advisor" && advisorId) {
+		baseCustQuery = baseCustQuery.or(`advisor_id.eq.${advisorId},source_advisor_id.eq.${advisorId}`);
+	}
 
-	const { count: wonCount } = await supabase
-		.from("customers")
-		.select("*", { count: "exact", head: true })
-		.eq("project_id", id)
-		.eq("lead_status", "🎉 Closed Won");
-
-	const { count: lostCount } = await supabase
-		.from("customers")
-		.select("*", { count: "exact", head: true })
-		.eq("project_id", id)
-		.eq("lead_status", "❌ Closed Lost");
+	const [enquiryRes, wonRes, lostRes] = await Promise.all([
+		baseCustQuery,
+		baseCustQuery.eq("lead_status", "🎉 Closed Won"),
+		baseCustQuery.eq("lead_status", "❌ Closed Lost")
+	]);
 
 	return {
 		project,
 		plotCounts,
 		totalRevenue,
 		recentSales,
-		enquiryCount: enquiryCount || 0,
-		wonCount: wonCount || 0,
-		lostCount: lostCount || 0,
+		enquiryCount: enquiryRes.count || 0,
+		wonCount: wonRes.count || 0,
+		lostCount: lostRes.count || 0,
 	};
 }
 

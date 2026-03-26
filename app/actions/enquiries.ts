@@ -28,7 +28,6 @@ export type EnquiryRow = {
 	is_active: boolean;
 	created_at: string;
 	follow_up_date: string | null;
-	interested_plan: string | null;
 	enquiry_status: string;
 	advisor_id: string | null;
 	advisor_name: string | null;
