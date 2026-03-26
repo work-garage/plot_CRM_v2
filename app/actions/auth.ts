@@ -8,7 +8,7 @@ export type AuthResult = { success: boolean; error?: string };
 
 function toAdvisorEmail(phone: string): string {
 	const sanitized = phone.replace(/\D/g, "").slice(-10) || "0";
-	return `adv_${sanitized}@mginfra.local`;
+	return `adv_${sanitized}@estateflowcrm.local`;
 }
 
 export async function signInWithEmailOrPhone(

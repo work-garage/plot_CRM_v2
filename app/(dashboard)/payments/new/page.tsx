@@ -1,12 +1,14 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { PaymentForm } from "@/components/payments/payment-form";
 import { getSales } from "@/app/actions/sales";
+import { requireModule } from "@/lib/server/modules";
 
 interface Props {
   searchParams: { saleId?: string };
 }
 
 export default async function NewPaymentPage({ searchParams }: Props) {
+  await requireModule("payments", "/dashboard");
   const { saleId } = await searchParams;
   const sales = await getSales();
 

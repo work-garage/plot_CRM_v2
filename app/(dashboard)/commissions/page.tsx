@@ -1,3 +1,4 @@
+import { requireModule } from "@/lib/server/modules";
 import { Card, CardContent } from "@/components/ui";
 import { PageHeader } from "@/components/shared/page-header";
 import { getCommissions } from "@/app/actions/commissions";
@@ -14,6 +15,7 @@ export default async function CommissionsPage({
     status?: string;
   }>;
 }) {
+  await requireModule("commissions", "/dashboard");
   const params = await searchParams;
   const commissions = await getCommissions();
 
@@ -110,3 +112,4 @@ export default async function CommissionsPage({
     </div>
   );
 }
+

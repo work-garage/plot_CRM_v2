@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -37,6 +38,12 @@ interface SaleFormProps {
   customers: any[];
   advisors: any[];
   initialPlotId?: string;
+  initialCustomerId?: string;
+  lockPlotSelection?: boolean;
+  lockCustomerSelection?: boolean;
+  hideMockData?: boolean;
+  onCancel?: () => void;
+  onSuccess?: (saleId: string) => void;
   advisorAssignments?: Array<{
     project_id: string;
     advisor_id: string;
@@ -49,8 +56,15 @@ export function SaleForm({
   customers,
   advisors,
   initialPlotId,
+  initialCustomerId,
+  lockPlotSelection = false,
+  lockCustomerSelection = false,
+  hideMockData = false,
+  onCancel,
+  onSuccess,
   advisorAssignments,
 }: SaleFormProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle");
   const [statusText, setStatusText] = useState("");
@@ -60,7 +74,7 @@ export function SaleForm({
     resolver: zodResolver(saleSchema) as any,
     defaultValues: {
       plot_id: initialPlotId || "",
-      customer_id: "",
+      customer_id: initialCustomerId || "",
       sold_by_admin: false,
       advisor_id: "" as string | null,
       sale_phase: "token",
@@ -376,6 +390,7 @@ export function SaleForm({
           customerPhone: customer?.phone ?? null,
           customerName: customer?.name ?? null,
         });
+        onSuccess?.(result.saleId);
       } else {
         setShareModal(null);
       }
@@ -394,9 +409,11 @@ export function SaleForm({
           <CardTitle className="text-lg">New Sale / Booking</CardTitle>
           <CardDescription className="text-xs">Record a new plot transaction</CardDescription>
         </div>
+        {!hideMockData ? (
         <Button type="button" variant="outline" size="sm" onClick={fillMockData}>
           Fill Mock Data
         </Button>
+        ) : null}
       </CardHeader>
       <CardContent className="p-4 pt-0">
         <Form {...form}>
@@ -416,7 +433,7 @@ export function SaleForm({
                       <FormLabel>Select Plot *</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger disabled={lockPlotSelection}>
                             <SelectValue placeholder="Choose an available plot" />
                           </SelectTrigger>
                         </FormControl>
@@ -441,7 +458,7 @@ export function SaleForm({
                       <FormLabel>Select Customer *</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger disabled={lockCustomerSelection}>
                             <SelectValue placeholder="Choose a buyer" />
                           </SelectTrigger>
                         </FormControl>
@@ -850,7 +867,19 @@ export function SaleForm({
             </div>
 
             <div className="flex gap-3 pt-3 border-t">
-              <Button type="button" variant="outline" onClick={() => window.history.back()}>Cancel</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  if (onCancel) {
+                    onCancel();
+                    return;
+                  }
+                  router.back();
+                }}
+              >
+                Cancel
+              </Button>
               <Button
                 type="submit"
                 disabled={loading || advisorRateInvalid}

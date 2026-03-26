@@ -47,11 +47,11 @@ export function Sidebar({ open, onClose, items }: SidebarProps) {
         {/* Logo */}
         <div className="flex justify-between items-center px-6 py-5 border-b border-zinc-900/50">
           <Link href="/dashboard" className="flex gap-3 items-center">
-            <div className="flex justify-center items-center w-9 h-9 bg-primary shadow-sm shadow-primary/30 rounded-xl">
-              <Building2 className="w-5 h-5 text-primary-foreground" />
+            <div className="flex justify-center items-center w-11 h-11 bg-primary shadow-sm shadow-primary/30 rounded-xl">
+              <Building2 className="w-7 h-7 text-primary-foreground" />
             </div>
             <div>
-              <p className="text-base font-bold tracking-tight leading-none text-zinc-50">PLOT CRM</p>
+              <p className="text-base font-bold tracking-tight leading-none text-zinc-50">EstateFlow CRM</p>
             </div>
           </Link>
           <button

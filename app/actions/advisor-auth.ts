@@ -11,7 +11,7 @@ export type ActionResponse<T = void> = {
 
 function toAdvisorEmail(phone: string): string {
 	const sanitized = phone.replace(/\D/g, "").slice(-10) || "0";
-	return `adv_${sanitized}@mginfra.local`;
+	return `adv_${sanitized}@estateflowcrm.local`;
 }
 
 async function ensureAdvisorAuthUser(advisorId: string) {
@@ -80,4 +80,3 @@ export async function resetAdvisorPassword(input: {
 
 	return { success: true, data: { newPassword } };
 }
-

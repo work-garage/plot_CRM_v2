@@ -67,6 +67,18 @@ export function MessagingDirectoryClient({ initialPeople }: { initialPeople: Mes
 	const [selected, setSelected] = useState<Set<string>>(new Set());
 	const [bulkOpen, setBulkOpen] = useState(false);
 	const [previewRole, setPreviewRole] = useState<MessagingPerson["role"]>("customer");
+	const [selectedTemplateIds, setSelectedTemplateIds] = useState<Record<ReminderType, string>>({
+		birthday_customer: getStoredTemplateId("birthday_customer") ?? "bd-1",
+		birthday_advisor: getStoredTemplateId("birthday_advisor") ?? "bda-1",
+		token_expiry: getStoredTemplateId("token_expiry") ?? "te-1",
+		agreement_expiry: getStoredTemplateId("agreement_expiry") ?? "ae-1",
+		installment_due: getStoredTemplateId("installment_due") ?? "id-1",
+		bank_statement: getStoredTemplateId("bank_statement") ?? "bs-1",
+		balance_plot: getStoredTemplateId("balance_plot") ?? "bp-1",
+		crm_followup: getStoredTemplateId("crm_followup") ?? "crm-1",
+		calling: getStoredTemplateId("calling") ?? "cl-1",
+		other: getStoredTemplateId("other") ?? "ot-1",
+	});
 
 	const birthdayCustomerGroup = REMINDER_TEMPLATES.find((g) => g.type === "birthday_customer")!;
 	const birthdayAdvisorGroup = REMINDER_TEMPLATES.find((g) => g.type === "birthday_advisor")!;
@@ -106,7 +118,7 @@ export function MessagingDirectoryClient({ initialPeople }: { initialPeople: Mes
 
 	const handleSendOne = (p: MessagingPerson) => {
 		const type: ReminderType = p.role === "advisor" ? "birthday_advisor" : "birthday_customer";
-		const tmpl = getTemplateForType(type, getStoredTemplateId(type));
+		const tmpl = getTemplateForType(type, selectedTemplateIds[type]);
 		if (!tmpl) {
 			toast.error("No template");
 			return;
@@ -132,9 +144,9 @@ export function MessagingDirectoryClient({ initialPeople }: { initialPeople: Mes
 	const previewTemplateBody = useMemo(() => {
 		const type =
 			previewRole === "advisor" ? "birthday_advisor" : "birthday_customer";
-		const tmpl = getTemplateForType(type, getStoredTemplateId(type));
+		const tmpl = getTemplateForType(type, selectedTemplateIds[type]);
 		return tmpl?.body ?? "";
-	}, [previewRole]);
+	}, [previewRole, selectedTemplateIds]);
 
 	const samplePerson: MessagingPerson = useMemo(
 		() => ({
@@ -150,6 +162,7 @@ export function MessagingDirectoryClient({ initialPeople }: { initialPeople: Mes
 
 	const pickTemplate = (type: ReminderType, t: MessageTemplate) => {
 		setStoredTemplateId(type, t.id);
+		setSelectedTemplateIds((current) => ({ ...current, [type]: t.id }));
 		toast.success("Template saved");
 	};
 
@@ -157,7 +170,7 @@ export function MessagingDirectoryClient({ initialPeople }: { initialPeople: Mes
 		<div className="mx-auto w-full max-w-6xl min-w-0 space-y-6 px-4 py-6 md:px-0">
 			<PageHeader
 				title="Messaging"
-				subtitle="Send WhatsApp messages — customers, advisors, and employees"
+				subtitle="Send WhatsApp messages - customers, advisors, and employees"
 			/>
 
 			<div className="flex flex-wrap gap-2 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
@@ -249,7 +262,7 @@ export function MessagingDirectoryClient({ initialPeople }: { initialPeople: Mes
 				<Input
 					value={query}
 					onChange={(e) => setQuery(e.target.value)}
-					placeholder="Search by name, phone…"
+					placeholder="Search by name, phone..."
 					className="h-11 rounded-xl border-zinc-200 pl-10 pr-12 dark:border-zinc-800"
 				/>
 				<button
@@ -266,7 +279,7 @@ export function MessagingDirectoryClient({ initialPeople }: { initialPeople: Mes
 				<CardContent className="p-4 md:p-5 space-y-4">
 					<div className="flex items-center justify-between gap-2">
 						<h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Message templates</h3>
-						<span className="text-xs text-muted-foreground">Birthday · WhatsApp</span>
+						<span className="text-xs text-muted-foreground">Birthday • WhatsApp</span>
 					</div>
 					<p className="text-xs text-muted-foreground">
 						Choose a template per audience. Used when you tap Send or run bulk send.
@@ -284,8 +297,8 @@ export function MessagingDirectoryClient({ initialPeople }: { initialPeople: Mes
 										onClick={() => pickTemplate("birthday_customer", t)}
 										className={cn(
 											"rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-											getStoredTemplateId("birthday_customer") === t.id ||
-												(!getStoredTemplateId("birthday_customer") && t.id === birthdayCustomerGroup.templates[0].id)
+											selectedTemplateIds.birthday_customer === t.id ||
+												(!selectedTemplateIds.birthday_customer && t.id === birthdayCustomerGroup.templates[0].id)
 												? "border-emerald-500 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50"
 												: "border-zinc-200 bg-zinc-50 hover:border-zinc-300 dark:border-zinc-800"
 										)}
@@ -305,8 +318,8 @@ export function MessagingDirectoryClient({ initialPeople }: { initialPeople: Mes
 										onClick={() => pickTemplate("birthday_advisor", t)}
 										className={cn(
 											"rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-											getStoredTemplateId("birthday_advisor") === t.id ||
-												(!getStoredTemplateId("birthday_advisor") && t.id === birthdayAdvisorGroup.templates[0].id)
+											selectedTemplateIds.birthday_advisor === t.id ||
+												(!selectedTemplateIds.birthday_advisor && t.id === birthdayAdvisorGroup.templates[0].id)
 												? "border-emerald-500 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50"
 												: "border-zinc-200 bg-zinc-50 hover:border-zinc-300 dark:border-zinc-800"
 										)}
@@ -345,7 +358,7 @@ export function MessagingDirectoryClient({ initialPeople }: { initialPeople: Mes
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<p className="text-sm text-zinc-600 dark:text-zinc-400">
 					<span className="font-semibold text-zinc-900 dark:text-zinc-100">{filtered.length}</span> members
-					{" · "}
+					{" • "}
 					<span className="font-semibold text-blue-700 dark:text-blue-300">{selectedInView.length}</span> selected
 				</p>
 				<div className="flex flex-wrap gap-2">

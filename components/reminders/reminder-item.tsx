@@ -73,7 +73,7 @@ export function ReminderItem({ reminder, customers = [] }: ReminderItemProps) {
 					title: reminder.title,
 					description: reminder.description || "",
 				})
-			: `Hello ${customerName}, regarding your task: ${reminder.title}.\n\nRegards,\nS-Infra\nContact: +91 9876543210`;
+			: `Hello ${customerName}, regarding your task: ${reminder.title}.\n\nRegards,\nEstateFlow CRM\nContact: +91 9876543210`;
 
 		const encodedMessage = encodeURIComponent(message);
 		window.open(

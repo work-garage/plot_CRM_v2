@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { FileText, ChevronRight, Sparkles, Check } from "lucide-react";
 import {
 	Dialog,
@@ -23,7 +23,7 @@ function highlightPlaceholders(text: string) {
 	const parts: { text: string; isPlaceholder: boolean }[] = [];
 	const regex = /\[([^\]]+)\]/g;
 	let lastIndex = 0;
-	let match;
+	let match: RegExpExecArray | null;
 
 	while ((match = regex.exec(text)) !== null) {
 		if (match.index > lastIndex) {
@@ -42,15 +42,30 @@ export function TemplatesModal() {
 	const [open, setOpen] = useState(false);
 	const [selectedTemplate, setSelectedTemplate] = useState<MessageTemplate | null>(null);
 	const [selectedGroupType, setSelectedGroupType] = useState<ReminderType | null>(null);
+	const [storedTemplateIds, setStoredTemplateIds] = useState<Record<string, string | null>>(() =>
+		REMINDER_TEMPLATES.reduce<Record<string, string | null>>((acc, group) => {
+			acc[group.type] = getStoredTemplateId(group.type);
+			return acc;
+		}, {})
+	);
+
+	const previewTemplate = useMemo(() => {
+		if (selectedTemplate) return selectedTemplate;
+		if (!selectedGroupType) return null;
+		const group = REMINDER_TEMPLATES.find((item) => item.type === selectedGroupType);
+		if (!group) return null;
+		return group.templates.find((template) => template.id === storedTemplateIds[selectedGroupType]) ?? group.templates[0] ?? null;
+	}, [selectedGroupType, selectedTemplate, storedTemplateIds]);
 
 	const handleSelectTemplate = (groupType: ReminderType, template: MessageTemplate) => {
 		setStoredTemplateId(groupType, template.id);
+		setStoredTemplateIds((current) => ({ ...current, [groupType]: template.id }));
 		setSelectedTemplate(template);
 		setSelectedGroupType(groupType);
 	};
 
 	const isTemplateSelected = (groupType: ReminderType, templateId: string) =>
-		getStoredTemplateId(groupType) === templateId;
+		storedTemplateIds[groupType] === templateId;
 
 	return (
 		<>
@@ -82,7 +97,6 @@ export function TemplatesModal() {
 					</DialogHeader>
 
 					<div className="min-h-0 flex-1 overflow-hidden flex flex-col md:flex-row">
-						{/* Template list */}
 						<div className="flex-1 overflow-y-auto border-b md:border-b-0 md:border-r border-zinc-100 p-4 min-h-[200px] md:min-h-0">
 							<div className="grid gap-4 sm:grid-cols-2 md:grid-cols-1">
 								{REMINDER_TEMPLATES.map((group) => (
@@ -126,13 +140,12 @@ export function TemplatesModal() {
 							</div>
 						</div>
 
-						{/* Preview panel */}
 						<div className="flex-1 flex flex-col min-h-[220px] md:min-h-0 bg-zinc-50/50">
-							{selectedTemplate ? (
+							{previewTemplate ? (
 								<>
 									<div className="p-3 border-b border-zinc-100 bg-white/80">
 										<p className="text-xs font-semibold text-zinc-600">
-											Preview — {selectedTemplate.name}
+											Preview - {previewTemplate.name}
 										</p>
 										<p className="text-[10px] text-zinc-400 mt-0.5">
 											Fields in brackets are replaced when sending
@@ -140,7 +153,7 @@ export function TemplatesModal() {
 									</div>
 									<div className="flex-1 overflow-y-auto p-4">
 										<div className="text-sm text-zinc-700 whitespace-pre-wrap leading-relaxed font-mono bg-white rounded-lg border border-zinc-100 p-4 shadow-sm">
-											{highlightPlaceholders(selectedTemplate.body).map((part, i) =>
+											{highlightPlaceholders(previewTemplate.body).map((part, i) =>
 												part.isPlaceholder ? (
 													<span
 														key={i}

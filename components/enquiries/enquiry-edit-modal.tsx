@@ -20,10 +20,11 @@ import {
 } from "@/components/ui";
 import type { EnquiryCustomerFormValues } from "@/lib/validations/enquiry";
 import type { EnquiryRow } from "@/app/actions/enquiries";
-import { updateEnquiryCustomer, upgradeEnquiryToCustomer, markLeadAsLost } from "@/app/actions/enquiries";
+import { updateEnquiryCustomer, markLeadAsLost } from "@/app/actions/enquiries";
 import { CustomerFollowUps } from "./customer-follow-ups";
 import { getContactStatus } from "@/lib/crm-utils";
 import { cn } from "@/lib/utils";
+import { EnquiryBookingDialog } from "./enquiry-booking-dialog";
 
 const LEAD_SOURCE_OPTIONS = ["Facebook", "Referral", "Website", "Advisor", "Other"] as const;
 const PROPERTY_TYPE_OPTIONS = ["Flats", "Plots", "Villas"] as const;
@@ -50,17 +51,19 @@ export function EnquiryEditModal({
 	enquiry,
 	projects,
 	advisors = [],
+	canManageOutcomes = true,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	enquiry: EnquiryRow | null;
 	projects: Array<{ id: string; name: string }>;
 	advisors?: Array<{ id: string; name: string }>;
+	canManageOutcomes?: boolean;
 }) {
 	const router = useRouter();
 	const [saving, setSaving] = useState(false);
-	const [markingWon, setMarkingWon] = useState(false);
 	const [markingLost, setMarkingLost] = useState(false);
+	const [bookingOpen, setBookingOpen] = useState(false);
 	const [tab, setTab] = useState<"details" | "followup">("followup");
 	const [form, setForm] = useState<EnquiryCustomerFormValues | null>(null);
 
@@ -109,20 +112,6 @@ export function EnquiryEditModal({
 		}
 	}
 
-	async function handleMarkWon() {
-		if (!enquiry) return;
-		setMarkingWon(true);
-		try {
-			const res = await upgradeEnquiryToCustomer({ enquiryId: enquiry.id });
-			if (!res.success) { toast.error(res.error || "Failed"); return; }
-			toast.success("🎉 Lead promoted to Customer (Closed Won)!");
-			onOpenChange(false);
-			router.refresh();
-		} finally {
-			setMarkingWon(false);
-		}
-	}
-
 	async function handleMarkLost() {
 		if (!enquiry) return;
 		setMarkingLost(true);
@@ -161,13 +150,13 @@ export function EnquiryEditModal({
 									</div>
 								);
 							})()}
-						<div className="flex gap-2">
-							{!isWon && !isLost && (
+							<div className="flex gap-2">
+							{canManageOutcomes && !isWon && !isLost && (
 								<>
 									<Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50"
-										onClick={handleMarkWon} disabled={markingWon}>
-										{markingWon ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trophy className="h-4 w-4 mr-1" />}
-										Mark Won
+										onClick={() => setBookingOpen(true)}>
+										<Trophy className="h-4 w-4 mr-1" />
+										Closed Won
 									</Button>
 									<Button size="sm" variant="outline" className="border-red-200 text-red-600 hover:bg-red-50"
 										onClick={handleMarkLost} disabled={markingLost}>
@@ -366,6 +355,17 @@ export function EnquiryEditModal({
 					</div>
 				)}
 			</DialogContent>
+			<EnquiryBookingDialog
+				open={bookingOpen}
+				onOpenChange={(value) => {
+					setBookingOpen(value);
+					if (!value) {
+						onOpenChange(false);
+						router.refresh();
+					}
+				}}
+				enquiry={enquiry ? { id: enquiry.id, name: enquiry.name, phone: enquiry.phone, advisor_id: enquiry.advisor_id } : null}
+			/>
 		</Dialog>
 	);
 }

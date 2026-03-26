@@ -3,282 +3,300 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import {
-	customerSchema,
-	type CustomerFormValues,
+  customerSchema,
+  type CustomerFormValues,
 } from "@/lib/validations/customer";
+import { getScopeContext } from "@/lib/server/scope";
+import { LEAD_STATUS } from "@/lib/constants/lead-status";
 
 export type ActionResponse = {
-	success: boolean;
-	error?: string;
+  success: boolean;
+  error?: string;
 };
 
 function mapCustomerDbError(error: { code?: string; message: string }): string {
-	if (error.code === "23505" && /(phone|customers_phone_unique)/i.test(error.message)) {
-		return "A customer with this phone number already exists.";
-	}
-	return error.message;
+  if (error.code === "23505" && /(phone|customers_phone_unique)/i.test(error.message)) {
+    return "A customer with this phone number already exists.";
+  }
+  return error.message;
 }
 
 function getNextBirthdayDate(birthDate: string): string | null {
-	if (!birthDate) return null;
-	const parsed = new Date(birthDate);
-	if (Number.isNaN(parsed.getTime())) return null;
-	const today = new Date();
-	const month = parsed.getMonth();
-	const day = parsed.getDate();
-	let target = new Date(today.getFullYear(), month, day);
-	target.setHours(0, 0, 0, 0);
-	const now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-	if (target < now) target = new Date(today.getFullYear() + 1, month, day);
-	return target.toISOString().slice(0, 10);
+  if (!birthDate) return null;
+  const parsed = new Date(birthDate);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const today = new Date();
+  const month = parsed.getMonth();
+  const day = parsed.getDate();
+  let target = new Date(today.getFullYear(), month, day);
+  target.setHours(0, 0, 0, 0);
+  const now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  if (target < now) target = new Date(today.getFullYear() + 1, month, day);
+  return target.toISOString().slice(0, 10);
 }
 
 async function syncCustomerBirthdayReminder(
-	supabase: any,
-	customer: { id: string; name: string; phone: string; birth_date?: string | null },
+  supabase: any,
+  customer: { id: string; name: string; phone: string; birth_date?: string | null },
 ) {
-	const marker = `AUTO_BIRTHDAY:customer:${customer.id}`;
-	const { data: existing } = await supabase
-		.from("reminders")
-		.select("id")
-		.eq("description", marker)
-		.maybeSingle();
+  const marker = `AUTO_BIRTHDAY:customer:${customer.id}`;
+  const { data: existing } = await supabase
+    .from("reminders")
+    .select("id")
+    .eq("description", marker)
+    .maybeSingle();
 
-	const nextDate = customer.birth_date ? getNextBirthdayDate(customer.birth_date) : null;
-	if (!nextDate) {
-		if (existing?.id) {
-			await supabase.from("reminders").delete().eq("id", existing.id);
-		}
-		return;
-	}
+  const nextDate = customer.birth_date ? getNextBirthdayDate(customer.birth_date) : null;
+  if (!nextDate) {
+    if (existing?.id) {
+      await supabase.from("reminders").delete().eq("id", existing.id);
+    }
+    return;
+  }
 
-	const payload = {
-		title: `Birthday Wish - ${customer.name}`,
-		type: "birthday_customer",
-		phone: customer.phone || null,
-		description: marker,
-		reminder_date: nextDate,
-		reminder_time: "09:00",
-		customer_id: customer.id,
-		project_id: null,
-		is_completed: false,
-	};
+  const payload = {
+    title: `Birthday Wish - ${customer.name}`,
+    type: "birthday_customer",
+    phone: customer.phone || null,
+    description: marker,
+    reminder_date: nextDate,
+    reminder_time: "09:00",
+    customer_id: customer.id,
+    project_id: null,
+    is_completed: false,
+  };
 
-	if (existing?.id) {
-		await supabase.from("reminders").update(payload).eq("id", existing.id);
-	} else {
-		await supabase.from("reminders").insert(payload);
-	}
+  if (existing?.id) {
+    await supabase.from("reminders").update(payload).eq("id", existing.id);
+  } else {
+    await supabase.from("reminders").insert(payload);
+  }
 }
 
 export async function createCustomer(
-	values: CustomerFormValues
+  values: CustomerFormValues,
 ): Promise<ActionResponse> {
-	const parsed = customerSchema.safeParse(values);
-	if (!parsed.success) {
-		return {
-			success: false,
-			error: parsed.error.issues[0]?.message || "Validation failed",
-		};
-	}
+  const parsed = customerSchema.safeParse(values);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message || "Validation failed",
+    };
+  }
 
-	const supabase = await createClient();
-	if (!supabase) return { success: false, error: "Database connection failed" };
+  const supabase = await createClient();
+  if (!supabase) return { success: false, error: "Database connection failed" };
 
-	const {
-		data: { user },
-		error: userErr,
-	} = await supabase.auth.getUser();
-	if (userErr || !user) {
-		return { success: false, error: "Unauthorized" };
-	}
+  const {
+    data: { user },
+    error: userErr,
+  } = await supabase.auth.getUser();
+  if (userErr || !user) {
+    return { success: false, error: "Unauthorized" };
+  }
 
-	const role = (user.user_metadata as any)?.role;
-	const advisorId = (user.user_metadata as any)?.advisor_id as
-		| string
-		| undefined;
+  const { role, advisorId } = await getScopeContext(supabase as any);
+  const resolvedAdvisorId = role === "advisor" ? advisorId ?? null : parsed.data.advisor_id ?? null;
 
-	const resolvedAdvisorId =
-		role === "advisor" ? advisorId ?? null : parsed.data.advisor_id ?? null;
+  if (role === "advisor" && !resolvedAdvisorId) {
+    return { success: false, error: "Advisor context missing" };
+  }
 
-	if (role === "advisor" && !resolvedAdvisorId) {
-		return { success: false, error: "Advisor context missing" };
-	}
+  const { data: insertedCustomer, error } = await supabase
+    .from("customers")
+    .insert({
+      name: parsed.data.name,
+      phone: parsed.data.phone,
+      alternate_phone: parsed.data.alternate_phone || null,
+      email: parsed.data.email || null,
+      city: parsed.data.city || null,
+      address: parsed.data.address || null,
+      birth_date: parsed.data.birth_date || null,
+      advisor_id: resolvedAdvisorId,
+      route: parsed.data.route || null,
+      notes: parsed.data.notes || null,
+      is_active: parsed.data.is_active,
+    })
+    .select("id, name, phone, birth_date")
+    .single();
 
-	const { data: insertedCustomer, error } = await supabase
-		.from("customers")
-		.insert({
-		name: parsed.data.name,
-		phone: parsed.data.phone,
-		alternate_phone: parsed.data.alternate_phone || null,
-		email: parsed.data.email || null,
-		city: parsed.data.city || null,
-		address: parsed.data.address || null,
-		birth_date: parsed.data.birth_date || null,
-		advisor_id: resolvedAdvisorId,
-		route: parsed.data.route || null,
-		notes: parsed.data.notes || null,
-		is_active: parsed.data.is_active,
-	})
-		.select("id, name, phone, birth_date")
-		.single();
+  if (error) {
+    return { success: false, error: mapCustomerDbError(error) };
+  }
 
-	if (error) {
-		return { success: false, error: mapCustomerDbError(error) };
-	}
+  if (insertedCustomer?.id) {
+    await syncCustomerBirthdayReminder(supabase, insertedCustomer);
+  }
 
-	if (insertedCustomer?.id) {
-		await syncCustomerBirthdayReminder(supabase, insertedCustomer);
-	}
-
-	revalidatePath(role === "advisor" ? "/advisor/customers" : "/customers");
-	revalidatePath("/messaging");
-	return { success: true };
+  revalidatePath(role === "advisor" ? "/advisor/customers" : "/customers");
+  revalidatePath("/messaging");
+  return { success: true };
 }
 
 export async function updateCustomer(
-	id: string,
-	values: CustomerFormValues
+  id: string,
+  values: CustomerFormValues,
 ): Promise<ActionResponse> {
-	const parsed = customerSchema.safeParse(values);
-	if (!parsed.success) {
-		return {
-			success: false,
-			error: parsed.error.issues[0]?.message || "Validation failed",
-		};
-	}
+  const parsed = customerSchema.safeParse(values);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message || "Validation failed",
+    };
+  }
 
-	const supabase = await createClient();
-	if (!supabase) return { success: false, error: "Database connection failed" };
+  const supabase = await createClient();
+  if (!supabase) return { success: false, error: "Database connection failed" };
 
-	const {
-		data: { user },
-		error: userErr,
-	} = await supabase.auth.getUser();
-	if (userErr || !user) {
-		return { success: false, error: "Unauthorized" };
-	}
+  const {
+    data: { user },
+    error: userErr,
+  } = await supabase.auth.getUser();
+  if (userErr || !user) {
+    return { success: false, error: "Unauthorized" };
+  }
 
-	const role = (user.user_metadata as any)?.role;
-	const advisorId = (user.user_metadata as any)?.advisor_id as
-		| string
-		| undefined;
+  const { role, advisorId } = await getScopeContext(supabase as any);
 
-	if (role === "advisor" && !advisorId) {
-		return { success: false, error: "Advisor context missing" };
-	}
+  if (role === "advisor" && !advisorId) {
+    return { success: false, error: "Advisor context missing" };
+  }
 
-	let query = supabase
-		.from("customers")
-		.update({
-			name: parsed.data.name,
-			phone: parsed.data.phone,
-			alternate_phone: parsed.data.alternate_phone || null,
-			email: parsed.data.email || null,
-			city: parsed.data.city || null,
-			address: parsed.data.address || null,
-			birth_date: parsed.data.birth_date || null,
-			advisor_id: role === "advisor" ? (advisorId ?? null) : (parsed.data.advisor_id || null),
-			route: parsed.data.route || null,
-			notes: parsed.data.notes || null,
-			is_active: parsed.data.is_active,
-			updated_at: new Date().toISOString(),
-		})
-		.eq("id", id);
+  let query = supabase
+    .from("customers")
+    .update({
+      name: parsed.data.name,
+      phone: parsed.data.phone,
+      alternate_phone: parsed.data.alternate_phone || null,
+      email: parsed.data.email || null,
+      city: parsed.data.city || null,
+      address: parsed.data.address || null,
+      birth_date: parsed.data.birth_date || null,
+      advisor_id: role === "advisor" ? advisorId ?? null : parsed.data.advisor_id || null,
+      route: parsed.data.route || null,
+      notes: parsed.data.notes || null,
+      is_active: parsed.data.is_active,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
 
-	// Advisors can only update their own customers (Source OR Assigned)
-	if (role === "advisor") {
-		query = query.or(`advisor_id.eq.${advisorId},source_advisor_id.eq.${advisorId}`);
-	}
+  if (role === "advisor" && advisorId) {
+    query = query.eq("advisor_id", advisorId);
+  }
 
-	const { data: updatedCustomer, error } = await query
-		.select("id, name, phone, birth_date")
-		.single();
+  const { data: updatedCustomer, error } = await query
+    .select("id, name, phone, birth_date")
+    .single();
 
-	if (error) {
-		return { success: false, error: mapCustomerDbError(error) };
-	}
+  if (error) {
+    return { success: false, error: mapCustomerDbError(error) };
+  }
 
-	if (updatedCustomer?.id) {
-		await syncCustomerBirthdayReminder(supabase, updatedCustomer);
-	}
+  if (updatedCustomer?.id) {
+    await syncCustomerBirthdayReminder(supabase, updatedCustomer);
+  }
 
-	revalidatePath(role === "advisor" ? "/advisor/customers" : "/customers");
-	revalidatePath(
-		role === "advisor" ? `/advisor/customers/${id}` : `/customers/${id}`
-	);
-	revalidatePath("/messaging");
-	return { success: true };
+  revalidatePath(role === "advisor" ? "/advisor/customers" : "/customers");
+  revalidatePath(role === "advisor" ? `/advisor/customers/${id}` : `/customers/${id}`);
+  revalidatePath("/messaging");
+  return { success: true };
 }
 
-export async function getCustomers() {
-	const supabase = await createClient();
-	if (!supabase) return [];
+export async function getCustomers(options?: {
+  includeAllStatuses?: boolean;
+  includeInactive?: boolean;
+}) {
+  const supabase = await createClient();
+  if (!supabase) return [];
 
-	const {
-		data: { user },
-		error: userErr,
-	} = await supabase.auth.getUser();
-	if (userErr) return [];
+  const {
+    data: { user },
+    error: userErr,
+  } = await supabase.auth.getUser();
+  if (userErr || !user) return [];
 
-	const role = (user?.user_metadata as any)?.role;
+  const { role, advisorId } = await getScopeContext(supabase as any);
 
-	let query = supabase
-		.from("customers")
-		.select(
-			`
+  let query = supabase
+    .from("customers")
+    .select(
+      `
       *,
       advisors!advisor_id(name)
-    `
-		)
-		.order("name", { ascending: true });
+    `,
+    )
+    .order("name", { ascending: true });
 
-	// Only show Closed Won enquiries as Customers
-	// (Closed Won = converted leads who actually bought — the true "customers")
-	query = query.eq("lead_status", "🎉 Closed Won");
+  if (!options?.includeAllStatuses) {
+    query = query.eq("lead_status", LEAD_STATUS.closedWon);
+  }
 
-	// If role is advisor, only show their own (Source OR Assigned)
-	if (role === "advisor") {
-		const advisorId = (user?.user_metadata as any)?.advisor_id;
-		if (advisorId) {
-			query = query.or(`advisor_id.eq.${advisorId},source_advisor_id.eq.${advisorId}`);
-		}
-	}
+  if (!options?.includeInactive) {
+    query = query.not("lead_status", "ilike", "%Closed Lost%");
+  }
 
-	const { data, error } = await query;
+  if (role === "advisor") {
+    if (!advisorId) return [];
+    query = query.eq("advisor_id", advisorId);
+  }
 
-	if (error) throw new Error(error.message);
-	return data || [];
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return data || [];
 }
 
 export async function getCustomerById(id: string) {
-	const supabase = await createClient();
-	if (!supabase) return null;
+  const supabase = await createClient();
+  if (!supabase) return null;
 
-	const {
-		data: { user },
-		error: userErr,
-	} = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: userErr,
+  } = await supabase.auth.getUser();
 
-	if (userErr || !user) return null;
+  if (userErr || !user) return null;
 
-	const role = (user.user_metadata as any)?.role;
+  const { role, advisorId } = await getScopeContext(supabase as any);
 
-	let query = supabase
-		.from("customers")
-		.select("*")
-		.eq("id", id)
-		.eq("is_active", true);
+  let query = supabase
+    .from("customers")
+    .select("*")
+    .eq("id", id)
+    .eq("is_active", true);
 
-	// Enforce advisor visibility (Source OR Assigned)
-	if (role === "advisor") {
-		const advisorId = (user.user_metadata as any)?.advisor_id;
-		if (advisorId) {
-			query = query.or(`advisor_id.eq.${advisorId},source_advisor_id.eq.${advisorId}`);
-		}
-	}
+  if (role === "advisor") {
+    if (!advisorId) return null;
+    query = query.eq("advisor_id", advisorId);
+  }
 
-	const { data, error } = await query.single();
-	if (error) return null;
-	return data;
+  const { data, error } = await query.single();
+  if (error) return null;
+  return data;
+}
+
+export async function getSaleCandidates() {
+  const supabase = await createClient();
+  if (!supabase) return [];
+
+  const {
+    data: { user },
+    error: userErr,
+  } = await supabase.auth.getUser();
+  if (userErr || !user) return [];
+
+  const { role, advisorId } = await getScopeContext(supabase as any);
+
+  let query = supabase
+    .from("customers")
+    .select("id, name, phone, advisor_id, lead_status, is_active")
+    .order("name", { ascending: true });
+
+  if (role === "advisor") {
+    if (!advisorId) return [];
+    query = query.eq("advisor_id", advisorId);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return data || [];
 }

@@ -1,3 +1,4 @@
+import { requireModule } from "@/lib/server/modules";
 import Link from "next/link";
 import { Plus, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui";
@@ -18,6 +19,7 @@ export default async function SalesPage({
     sort?: string;
   }>;
 }) {
+  await requireModule("sales", "/dashboard");
   const params = await searchParams;
   const sales = await getSales();
 
@@ -128,3 +130,4 @@ export default async function SalesPage({
     </div>
   );
 }
+

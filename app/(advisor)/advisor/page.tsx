@@ -7,18 +7,13 @@ import { formatCurrency } from "@/lib/utils/formatters";
 import { Card, CardContent, Button } from "@/components/ui";
 import { Users, Handshake, IndianRupee, Clock } from "lucide-react";
 import { getModuleSettings } from "@/app/actions/settings";
+import { getScopeContext } from "@/lib/server/scope";
 
 export default async function AdvisorDashboardPage() {
 	const supabase = await createClient();
 	if (!supabase) redirect("/login");
-
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const { user, role, advisorId } = await getScopeContext(supabase);
 	if (!user) redirect("/login");
-
-	const role = (user.user_metadata as any)?.role;
-	const advisorId = (user.user_metadata as any)?.advisor_id as string | undefined;
 	if (role !== "advisor" || !advisorId) redirect("/dashboard");
 
 	const [data, modules] = await Promise.all([
@@ -139,4 +134,3 @@ export default async function AdvisorDashboardPage() {
 		</div>
 	);
 }
-

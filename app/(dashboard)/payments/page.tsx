@@ -1,3 +1,4 @@
+import { requireModule } from "@/lib/server/modules";
 import Link from "next/link";
 import { Plus, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui";
@@ -17,6 +18,7 @@ export default async function PaymentsPage({
 		mode?: string;
 	}>;
 }) {
+	await requireModule("payments", "/dashboard");
 	const params = await searchParams;
 
 	const from = params.from ?? "";
@@ -78,3 +80,4 @@ export default async function PaymentsPage({
 		</div>
 	);
 }
+

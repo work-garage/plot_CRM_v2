@@ -24,6 +24,8 @@ export interface ReminderTemplateGroup {
 }
 
 const COMPANY_SIGNATURE = "\n\nRegards,\n[company]\nContact: [company_phone]";
+const TEMPLATE_STORAGE_KEY = "estateflow_crm_reminder_templates";
+const LEGACY_TEMPLATE_STORAGE_KEY = "sinfra_reminder_templates";
 
 export const REMINDER_TEMPLATES: ReminderTemplateGroup[] = [
 	{
@@ -33,7 +35,7 @@ export const REMINDER_TEMPLATES: ReminderTemplateGroup[] = [
 			{
 				id: "bd-1",
 				name: "Warm & Joyful",
-				body: `Wishing you a very Happy Birthday, [name]! 🎂 May this year bring you joy, prosperity, and success. Have a wonderful day!${COMPANY_SIGNATURE}`,
+				body: `Wishing you a very Happy Birthday, [name]! May this year bring you joy, prosperity, and success. Have a wonderful day!${COMPANY_SIGNATURE}`,
 			},
 			{
 				id: "bd-2",
@@ -43,7 +45,7 @@ export const REMINDER_TEMPLATES: ReminderTemplateGroup[] = [
 			{
 				id: "bd-3",
 				name: "Short & Sweet",
-				body: `Happy Birthday, [name]! 🎉 Wishing you a fantastic year ahead!${COMPANY_SIGNATURE}`,
+				body: `Happy Birthday, [name]! Wishing you a fantastic year ahead!${COMPANY_SIGNATURE}`,
 			},
 		],
 	},
@@ -54,7 +56,7 @@ export const REMINDER_TEMPLATES: ReminderTemplateGroup[] = [
 			{
 				id: "bda-1",
 				name: "Partner Appreciation",
-				body: `Happy Birthday, [name]! 🎂 Thank you for being a valued partner. Wishing you a year of growth and success!${COMPANY_SIGNATURE}`,
+				body: `Happy Birthday, [name]! Thank you for being a valued partner. Wishing you a year of growth and success!${COMPANY_SIGNATURE}`,
 			},
 			{
 				id: "bda-2",
@@ -70,7 +72,7 @@ export const REMINDER_TEMPLATES: ReminderTemplateGroup[] = [
 			{
 				id: "te-1",
 				name: "Urgent",
-				body: `Hello [name], your token period for the plot at S-Infra is expiring soon. Kindly complete the process to avoid cancellation. Please contact us at your earliest.${COMPANY_SIGNATURE}`,
+				body: `Hello [name], your token period for the plot at EstateFlow CRM is expiring soon. Kindly complete the process to avoid cancellation. Please contact us at your earliest.${COMPANY_SIGNATURE}`,
 			},
 			{
 				id: "te-2",
@@ -97,7 +99,7 @@ export const REMINDER_TEMPLATES: ReminderTemplateGroup[] = [
 			{
 				id: "id-1",
 				name: "Standard",
-				body: `Hello [name], this is a reminder for your plot installment due at S-Infra. Kindly ignore if already paid.${COMPANY_SIGNATURE}`,
+				body: `Hello [name], this is a reminder for your plot installment due at EstateFlow CRM. Kindly ignore if already paid.${COMPANY_SIGNATURE}`,
 			},
 			{
 				id: "id-2",
@@ -113,7 +115,7 @@ export const REMINDER_TEMPLATES: ReminderTemplateGroup[] = [
 			{
 				id: "crm-1",
 				name: "General",
-				body: `Hello [name], following up on our previous discussion regarding the S-Infra projects in Nagpur. Would love to connect soon!${COMPANY_SIGNATURE}`,
+				body: `Hello [name], following up on our previous discussion regarding the EstateFlow CRM projects in Nagpur. Would love to connect soon!${COMPANY_SIGNATURE}`,
 			},
 			{
 				id: "crm-2",
@@ -168,25 +170,32 @@ export const REMINDER_TEMPLATES: ReminderTemplateGroup[] = [
 	},
 ];
 
-const TEMPLATE_STORAGE_KEY = "sinfra_reminder_templates";
+function readStoredTemplateMap(): Record<string, string> {
+	if (typeof window === "undefined") return {};
+	try {
+		const stored =
+			localStorage.getItem(TEMPLATE_STORAGE_KEY) ??
+			localStorage.getItem(LEGACY_TEMPLATE_STORAGE_KEY);
+		if (!stored) return {};
+		const parsed = JSON.parse(stored) as Record<string, string>;
+		if (!localStorage.getItem(TEMPLATE_STORAGE_KEY)) {
+			localStorage.setItem(TEMPLATE_STORAGE_KEY, JSON.stringify(parsed));
+		}
+		return parsed;
+	} catch {
+		return {};
+	}
+}
 
 export function getStoredTemplateId(type: ReminderType): string | null {
-	if (typeof window === "undefined") return null;
-	try {
-		const stored = localStorage.getItem(TEMPLATE_STORAGE_KEY);
-		if (!stored) return null;
-		const obj = JSON.parse(stored);
-		return obj[type] ?? null;
-	} catch {
-		return null;
-	}
+	const obj = readStoredTemplateMap();
+	return obj[type] ?? null;
 }
 
 export function setStoredTemplateId(type: ReminderType, templateId: string): void {
 	if (typeof window === "undefined") return;
 	try {
-		const stored = localStorage.getItem(TEMPLATE_STORAGE_KEY);
-		const obj = stored ? JSON.parse(stored) : {};
+		const obj = readStoredTemplateMap();
 		obj[type] = templateId;
 		localStorage.setItem(TEMPLATE_STORAGE_KEY, JSON.stringify(obj));
 	} catch {
@@ -207,7 +216,7 @@ export function getDynamicFields(): string[] {
 }
 
 const DEFAULT_VALUES: Record<string, string> = {
-	company: "S-Infra",
+	company: "EstateFlow CRM",
 	company_phone: "+91 9876543210",
 };
 

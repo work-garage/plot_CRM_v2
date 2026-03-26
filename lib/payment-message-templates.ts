@@ -11,28 +11,33 @@ export const PAYMENT_MESSAGE_TEMPLATES: PaymentMessageTemplate[] = [
 		id: "payment_due",
 		label: "Payment due (general)",
 		body:
-			"Hi [name], this is a gentle reminder regarding your pending payment of [remaining] for plot [plot] at [project]. Please pay at your earliest convenience.\n\n— S-Infra",
+			"Hi [name], this is a gentle reminder regarding your pending payment of [remaining] for plot [plot] at [project]. Please pay at your earliest convenience.\n\n- EstateFlow CRM",
 	},
 	{
 		id: "emi_due",
 		label: "EMI due",
 		body:
-			"Hi [name], your EMI of [emi_amount] for plot [plot] ([project]) is due on [due_date]. Remaining balance: [remaining]. Thank you.\n\n— S-Infra",
+			"Hi [name], your EMI of [emi_amount] for plot [plot] ([project]) is due on [due_date]. Remaining balance: [remaining]. Thank you.\n\n- EstateFlow CRM",
 	},
 	{
 		id: "overdue",
 		label: "Overdue follow-up",
 		body:
-			"Hi [name], we noticed an overdue balance of [remaining] for plot [plot] ([project]). Please contact us to arrange payment.\n\n— S-Infra",
+			"Hi [name], we noticed an overdue balance of [remaining] for plot [plot] ([project]). Please contact us to arrange payment.\n\n- EstateFlow CRM",
 	},
 ];
 
-const STORAGE_PREFIX = "sinfra_payment_template_";
+const STORAGE_PREFIX = "estateflow_crm_payment_template_";
+const LEGACY_STORAGE_PREFIX = "sinfra_payment_template_";
 
 export function getStoredPaymentTemplateId(): PaymentTemplateId {
 	if (typeof window === "undefined") return "payment_due";
 	try {
-		const v = localStorage.getItem(`${STORAGE_PREFIX}default`) as PaymentTemplateId | null;
+		const v = (localStorage.getItem(`${STORAGE_PREFIX}default`) ??
+			localStorage.getItem(`${LEGACY_STORAGE_PREFIX}default`)) as PaymentTemplateId | null;
+		if (v && !localStorage.getItem(`${STORAGE_PREFIX}default`)) {
+			localStorage.setItem(`${STORAGE_PREFIX}default`, v);
+		}
 		if (v && PAYMENT_MESSAGE_TEMPLATES.some((t) => t.id === v)) return v;
 	} catch {
 		/* ignore */

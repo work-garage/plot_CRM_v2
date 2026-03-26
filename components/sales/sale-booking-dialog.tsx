@@ -11,7 +11,7 @@ import {
   Skeleton,
 } from "@/components/ui";
 import { SaleForm } from "@/components/sales/sale-form";
-import { getCustomers } from "@/app/actions/customers";
+import { getSaleCandidates } from "@/app/actions/customers";
 import { getAdvisors } from "@/app/actions/advisors";
 import { getAdvisorAssignmentsByProject } from "@/app/actions/advisor-projects";
 
@@ -50,7 +50,7 @@ export function SaleBookingDialog({
 
     setLoading(true);
     Promise.all([
-      getCustomers(),
+      getSaleCandidates(),
       getAdvisors(),
       getAdvisorAssignmentsByProject(projectId),
     ])
@@ -125,6 +125,9 @@ export function SaleBookingDialog({
               customers={customers}
               advisors={advisors}
               initialPlotId={plot.id}
+              lockPlotSelection
+              hideMockData
+              onCancel={() => onOpenChange(false)}
               advisorAssignments={advisorAssignments}
             />
           </div>
@@ -133,4 +136,3 @@ export function SaleBookingDialog({
     </Dialog>
   );
 }
-

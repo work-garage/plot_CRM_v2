@@ -96,6 +96,7 @@ export function AddSectionsModal({
 								checked={modules[m.key]} 
 								onCheckedChange={(checked) => toggleModule(m.key, checked)}
 								disabled={isUpdating}
+								className="border-zinc-900/20"
 							/>
 						</div>
 					))}

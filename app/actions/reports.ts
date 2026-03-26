@@ -1,462 +1,376 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getScopeContext } from "@/lib/server/scope";
+import { isClosedLostStatus, isClosedWonStatus } from "@/lib/constants/lead-status";
 
 export type ReportFilters = {
-	startDate?: string; // ISO date YYYY-MM-DD
-	endDate?: string;   // ISO date YYYY-MM-DD
+  startDate?: string;
+  endDate?: string;
 };
 
-function toDateOnly(iso: string): string {
-	return iso.slice(0, 10);
+function toDateOnly(value: string): string {
+  return value.slice(0, 10);
 }
 
-function inRange(dateStr: string, start?: string, end?: string): boolean {
-	if (!start && !end) return true;
-	const d = toDateOnly(dateStr);
-	if (start && d < start) return false;
-	if (end && d > end) return false;
-	return true;
+function inRange(dateStr: string | null | undefined, start?: string, end?: string): boolean {
+  if (!dateStr) return false;
+  const date = toDateOnly(dateStr);
+  if (start && date < start) return false;
+  if (end && date > end) return false;
+  return true;
 }
 
 export async function getReportStats(filters?: ReportFilters) {
-	const supabase = await createClient();
-	if (!supabase) {
-		return getEmptyReport();
-	}
+  const supabase = await createClient();
+  if (!supabase) return getEmptyReport();
 
-	const start = filters?.startDate ? toDateOnly(filters.startDate) : undefined;
-	const end = filters?.endDate ? toDateOnly(filters.endDate) : undefined;
+  const start = filters?.startDate ? toDateOnly(filters.startDate) : undefined;
+  const end = filters?.endDate ? toDateOnly(filters.endDate) : undefined;
+  const { role, advisorId } = await getScopeContext(supabase as any);
 
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
-	const role = (user?.user_metadata as any)?.role;
-	let advisorId: string | null = null;
+  let salesQuery = supabase
+    .from("plot_sales")
+    .select(
+      "id, customer_id, advisor_id, sold_by_admin, total_sale_amount, amount_paid, remaining_amount, created_at, plots(project_id, projects(id, name)), sale_phase"
+    )
+    .eq("is_cancelled", false);
 
-	if (role === "advisor") {
-		const { data: adv } = await supabase
-			.from("advisors")
-			.select("id")
-			.eq("auth_user_id", user!.id)
-			.single();
-		advisorId = adv?.id ?? null;
-	}
+  if (role === "advisor") {
+    if (!advisorId) return getEmptyReport();
+    salesQuery = salesQuery.eq("advisor_id", advisorId);
+  }
 
-	// 1. Sales
-	let salesQuery = supabase
-		.from("plot_sales")
-		.select(
-			"id, customer_id, total_sale_amount, amount_paid, remaining_amount, created_at, plots(project_id, projects(id, name)), customers(source_advisor_id), sale_phase"
-		)
-		.eq("is_cancelled", false);
+  const { data: sales } = await salesQuery;
+  const filteredSales = (sales ?? []).filter((sale: any) => (!start && !end) || inRange(sale.created_at ?? "", start, end));
 
-	if (role === "advisor" && advisorId) {
-		salesQuery = salesQuery.or(
-			`advisor_id.eq.${advisorId},customers.source_advisor_id.eq.${advisorId}`
-		);
-	}
+  const totalSalesValue = filteredSales.reduce((sum: number, sale: any) => sum + Number(sale.total_sale_amount ?? 0), 0);
+  const totalRevenueCollected = filteredSales.reduce((sum: number, sale: any) => sum + Number(sale.amount_paid ?? 0), 0);
+  const totalOutstanding = filteredSales.reduce((sum: number, sale: any) => sum + Number(sale.remaining_amount ?? 0), 0);
 
-	const { data: sales } = await salesQuery;
+  let paymentsQuery = supabase
+    .from("payments")
+    .select("amount, payment_date, is_confirmed, sale_id")
+    .eq("is_confirmed", true);
 
-	const filteredSales = (sales ?? []).filter((s: any) => inRange(s.created_at ?? "", start, end));
+  if (role === "advisor") {
+    const advisorSaleIds = filteredSales.map((sale: any) => sale.id);
+    if (advisorSaleIds.length === 0) {
+      paymentsQuery = paymentsQuery.eq("sale_id", "00000000-0000-0000-0000-000000000000");
+    } else {
+      paymentsQuery = paymentsQuery.in("sale_id", advisorSaleIds);
+    }
+  }
 
-	const totalSalesValue = filteredSales.reduce((sum, s) => sum + Number(s.total_sale_amount ?? 0), 0);
-	const totalRevenueCollected = filteredSales.reduce((sum, s) => sum + Number(s.amount_paid ?? 0), 0);
-	const totalOutstanding = filteredSales.reduce((sum, s) => sum + Number(s.remaining_amount ?? 0), 0);
+  const { data: payments } = await paymentsQuery;
+  const filteredPayments = (payments ?? []).filter((payment: any) => (!start && !end) || inRange(payment.payment_date ?? "", start, end));
 
-	// 2. Payments (for collections timeline)
-	let paymentsQuery = supabase
-		.from("payments")
-		.select("amount, payment_date, is_confirmed, sale_id")
-		.eq("is_confirmed", true);
+  let filteredExpenses: any[] = [];
+  if (role !== "advisor") {
+    const { data: expenses } = await supabase
+      .from("office_expenses")
+      .select("amount, expense_date, category");
+    filteredExpenses = (expenses ?? []).filter((expense: any) => (!start && !end) || inRange(expense.expense_date ?? "", start, end));
+  }
 
-	if (role === "advisor" && advisorId) {
-		// Pre-fetch sale IDs for this advisor (Sourced OR Assigned) to avoid unsupported cross-table .or()
-		const { data: advisorSales } = await supabase
-			.from("plot_sales")
-			.select("id")
-			.eq("is_cancelled", false)
-			.or(`advisor_id.eq.${advisorId},customers.source_advisor_id.eq.${advisorId}`);
-		const advisorSaleIds = (advisorSales ?? []).map((s: any) => s.id);
-		if (advisorSaleIds.length > 0) {
-			paymentsQuery = paymentsQuery.in("sale_id", advisorSaleIds);
-		} else {
-			// No sales for this advisor — return empty immediately to avoid leaking data
-			paymentsQuery = paymentsQuery.eq("sale_id", "00000000-0000-0000-0000-000000000000");
-		}
-	}
+  const totalExpenses = filteredExpenses.reduce((sum: number, expense: any) => sum + Number(expense.amount ?? 0), 0);
 
-	const { data: payments } = await paymentsQuery;
+  let advisorsQuery = supabase
+    .from("advisors")
+    .select("id, name, advisor_commissions(total_commission_amount, amount_paid)");
+  if (role === "advisor" && advisorId) {
+    advisorsQuery = advisorsQuery.eq("id", advisorId);
+  }
+  const { data: advisors } = await advisorsQuery;
 
-	const filteredPayments = (payments ?? []).filter((p: any) => inRange(p.payment_date ?? "", start, end));
-	const totalPaymentsCollected = filteredPayments.reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+  const { data: commissionPayments, error: commissionPaymentsErr } = await supabase
+    .from("advisor_commission_payments")
+    .select("extra_paid_amount, paid_date");
 
-	// 3. Expenses (Advisors see nothing)
-	let totalExpenses = 0;
-	let filteredExpenses: any[] = [];
-	if (role !== "advisor") {
-		const { data: expenses } = await supabase
-			.from("office_expenses")
-			.select("amount, expense_date, category");
+  const safeCommissionPayments =
+    commissionPaymentsErr && (commissionPaymentsErr.message || "").toLowerCase().includes("extra_paid_amount")
+      ? []
+      : commissionPayments ?? [];
 
-		filteredExpenses = (expenses ?? []).filter((e: any) =>
-			inRange(e.expense_date ?? "", start, end)
-		);
-		totalExpenses = filteredExpenses.reduce(
-			(sum, e) => sum + Number(e.amount ?? 0),
-			0
-		);
-	}
+  const filteredCommissionPayments = safeCommissionPayments.filter((payment: any) => (!start && !end) || inRange(payment.paid_date ?? "", start, end));
+  const totalExtraCommissionPaid = filteredCommissionPayments.reduce(
+    (sum: number, payment: any) => sum + Number(payment.extra_paid_amount ?? 0),
+    0,
+  );
 
-	// 4. Advisor commissions
-	let advisorsQuery = supabase.from("advisors").select("id, name, advisor_commissions(total_commission_amount, amount_paid)");
-	if (role === "advisor" && advisorId) {
-		advisorsQuery = advisorsQuery.eq("id", advisorId);
-	}
-	const { data: advisors } = await advisorsQuery;
+  const advisorPerformance = (advisors ?? []).map((advisor: any) => {
+    const commissions = (advisor.advisor_commissions as any[]) || [];
+    const total = commissions.reduce((sum, commission) => sum + Number(commission.total_commission_amount ?? 0), 0);
+    const paid = commissions.reduce((sum, commission) => sum + Number(commission.amount_paid ?? 0), 0);
+    return {
+      name: advisor.name,
+      totalCommission: total,
+      paidCommission: paid,
+      pending: total - paid,
+    };
+  });
 
-	const { data: commissionPayments, error: commissionPaymentsErr } = await supabase
-		.from("advisor_commission_payments")
-		.select("extra_paid_amount, paid_date");
-	const safeCommissionPayments =
-		commissionPaymentsErr &&
-		(commissionPaymentsErr.message || "").toLowerCase().includes("extra_paid_amount")
-			? []
-			: commissionPayments ?? [];
+  const { data: projects } = await supabase.from("projects").select("id, name, plots(id, status)");
+  const projectStats = (projects ?? []).map((project: any) => {
+    const plots = (project.plots as any[]) || [];
+    const total = plots.length;
+    const sold = plots.filter((plot: any) => ["sold", "agreement", "token"].includes(plot.status)).length;
+    const available = plots.filter((plot: any) => plot.status === "available").length;
+    const soldInPeriod = filteredSales.filter((sale: any) => (sale as any).plots?.project_id === project.id).length;
+    return {
+      name: project.name,
+      total,
+      sold,
+      soldInPeriod,
+      available,
+    };
+  });
 
-	const filteredCommissionPayments = safeCommissionPayments.filter((p: any) =>
-		inRange(p.paid_date ?? "", start, end)
-	);
-	const totalExtraCommissionPaid = filteredCommissionPayments.reduce(
-		(sum, p: any) => sum + Number(p.extra_paid_amount ?? 0),
-		0
-	);
+  const revenueByProject: Record<string, number> = {};
+  const revenueByPhase: Record<string, number> = {};
+  for (const sale of filteredSales) {
+    const projectName = (sale as any).plots?.projects?.name ?? "Unknown";
+    revenueByProject[projectName] = (revenueByProject[projectName] ?? 0) + Number((sale as any).total_sale_amount ?? 0);
 
-	const advisorPerformance = (advisors ?? []).map((a: any) => {
-		const comms = (a.advisor_commissions as any[]) || [];
-		const total = comms.reduce((s, c) => s + Number(c.total_commission_amount ?? 0), 0);
-		const paid = comms.reduce((s, c) => s + Number(c.amount_paid ?? 0), 0);
-		return {
-			name: a.name,
-			totalCommission: total,
-			paidCommission: paid,
-			pending: total - paid,
-		};
-	});
+    const phase = (sale as any).sale_phase ?? "other";
+    revenueByPhase[phase] = (revenueByPhase[phase] ?? 0) + Number((sale as any).total_sale_amount ?? 0);
+  }
 
-	// 5. Project stats
-	const { data: projects } = await supabase
-		.from("projects")
-		.select("id, name, plots(id, status)");
+  const topAdvisorSales: Record<string, number> = {};
+  const { data: salesWithAdvisor } = await supabase
+    .from("plot_sales")
+    .select("advisor_id, sold_by_admin, total_sale_amount, created_at, advisors(name)")
+    .eq("is_cancelled", false);
 
-	const projectStats = (projects ?? []).map((p: any) => {
-		const plots = (p.plots as any[]) || [];
-		const total = plots.length;
-		const sold = plots.filter((pl: any) => pl.status === "sold" || pl.status === "agreement" || pl.status === "token").length;
-		const available = plots.filter((pl: any) => pl.status === "available").length;
-		const soldInPeriod = filteredSales.filter((s: any) =>
-			(s as any).plots?.project_id === p.id || (s as any).plots?.projects?.id === p.id
-		).length;
-		return {
-			name: p.name,
-			total,
-			sold,
-			soldInPeriod,
-			available,
-		};
-	});
+  const filteredWithAdvisor = (salesWithAdvisor ?? []).filter((sale: any) => (!start && !end) || inRange(sale.created_at ?? "", start, end));
+  for (const sale of filteredWithAdvisor) {
+    if (role === "advisor" && advisorId && sale.advisor_id !== advisorId) continue;
+    const advisorName = Array.isArray(sale.advisors)
+      ? (sale.advisors[0] as any)?.name
+      : (sale.advisors as any)?.name;
+    const label = sale.sold_by_admin ? "Admin (Direct)" : advisorName ?? sale.advisor_id ?? "Unknown";
+    topAdvisorSales[label] = (topAdvisorSales[label] ?? 0) + Number(sale.total_sale_amount ?? 0);
+  }
 
-	// 6. Revenue by project (in period)
-	const revenueByProject: Record<string, number> = {};
-	for (const s of filteredSales) {
-		const proj = (s as any).plots?.projects?.name ?? "Unknown";
-		revenueByProject[proj] = (revenueByProject[proj] ?? 0) + Number((s as any).total_sale_amount ?? 0);
-	}
+  const expenseByCategory: Record<string, number> = {};
+  for (const expense of filteredExpenses) {
+    const category = expense.category ?? "misc";
+    expenseByCategory[category] = (expenseByCategory[category] ?? 0) + Number(expense.amount ?? 0);
+  }
 
-	// 7. Revenue by sale phase
-	const revenueByPhase: Record<string, number> = {};
-	for (const s of filteredSales) {
-		const phase = (s as any).sale_phase ?? "other";
-		revenueByPhase[phase] = (revenueByPhase[phase] ?? 0) + Number((s as any).total_sale_amount ?? 0);
-	}
+  let customersQuery = supabase
+    .from("customers")
+    .select("id, advisor_id, lead_status, created_at, won_at, property_type, segment, is_active");
+  if (role === "advisor") {
+    if (!advisorId) return getEmptyReport();
+    customersQuery = customersQuery.eq("advisor_id", advisorId);
+  }
+  const { data: customers } = await customersQuery;
 
-	// 8. Top advisors by sales value (includes "Admin (Direct)" for sold_by_admin)
-	const advisorSales: Record<string, number> = {};
-	const { data: salesWithAdvisor } = await supabase
-		.from("plot_sales")
-		.select("advisor_id, sold_by_admin, total_sale_amount, created_at, advisors(name)")
-		.eq("is_cancelled", false);
+  const visibleCustomers = customers ?? [];
+  const closedWonCustomers = visibleCustomers.filter((customer: any) => isClosedWonStatus(customer.lead_status));
+  const newCustomersInPeriod = closedWonCustomers.filter((customer: any) => inRange(customer.won_at ?? customer.created_at, start, end)).length;
 
-	const filteredWithAdvisor = (salesWithAdvisor ?? []).filter((s: any) => inRange(s.created_at ?? "", start, end));
-	for (const s of filteredWithAdvisor) {
-		const name =
-			(s as any).sold_by_admin
-				? "Admin (Direct)"
-				: (s as any).advisors?.name ?? (s as any).advisor_id ?? "Unknown";
-		advisorSales[name] = (advisorSales[name] ?? 0) + Number((s as any).total_sale_amount ?? 0);
-	}
+  const convertedInPeriod = closedWonCustomers.filter((customer: any) => inRange(customer.won_at ?? customer.created_at, start, end));
+  const convertedCustomerIds = new Set(convertedInPeriod.map((customer: any) => customer.id));
+  const convertedSales = filteredSales.filter((sale: any) => convertedCustomerIds.has(sale.customer_id));
+  const enquiryConvertedRevenue = convertedSales.reduce((sum: number, sale: any) => sum + Number(sale.total_sale_amount ?? 0), 0);
 
-	const topAdvisors = Object.entries(advisorSales)
-		.map(([name, val]) => ({ name, value: val }))
-		.sort((a, b) => b.value - a.value)
-		.slice(0, 10);
+  const conversionCategoryCounts: Record<string, number> = {};
+  for (const customer of convertedInPeriod) {
+    const category = customer.property_type || customer.segment || "Other";
+    conversionCategoryCounts[category] = (conversionCategoryCounts[category] ?? 0) + 1;
+  }
 
-	// 9. Expense by category
-	const expenseByCategory: Record<string, number> = {};
-	for (const e of filteredExpenses) {
-		const cat = (e as any).category ?? "misc";
-		expenseByCategory[cat] = (expenseByCategory[cat] ?? 0) + Number((e as any).amount ?? 0);
-	}
+  const baseLeadStats = {
+    total: visibleCustomers.length,
+    active: visibleCustomers.filter((customer: any) => !isClosedWonStatus(customer.lead_status) && !isClosedLostStatus(customer.lead_status)).length,
+    won: visibleCustomers.filter((customer: any) => isClosedWonStatus(customer.lead_status)).length,
+    lost: visibleCustomers.filter((customer: any) => isClosedLostStatus(customer.lead_status)).length,
+  };
 
-	// 10. Collections vs outstanding
-	const collectionsVsOutstanding = {
-		collected: totalRevenueCollected,
-		outstanding: totalOutstanding,
-		total: totalSalesValue,
-	};
+  const salesByMonth: Record<string, { count: number; value: number }> = {};
+  for (const sale of filteredSales) {
+    const month = String(sale.created_at ?? "").slice(0, 7);
+    const previous = salesByMonth[month] ?? { count: 0, value: 0 };
+    previous.count += 1;
+    previous.value += Number(sale.total_sale_amount ?? 0);
+    salesByMonth[month] = previous;
+  }
 
-	// 11. Customer count (new in period)
-	let customersQuery = supabase.from("customers").select("created_at");
-	if (role === "advisor" && advisorId) {
-		customersQuery = customersQuery.or(`advisor_id.eq.${advisorId},source_advisor_id.eq.${advisorId}`);
-	}
-	const { data: customers } = await customersQuery;
-
-	const newCustomersInPeriod = (customers ?? []).filter((c: any) => inRange(c.created_at ?? "", start, end)).length;
-
-	// 12. Enquiry conversions (temporary -> regular)
-	const { data: enquiryUpgradedCustomers } = await supabase
-		.from("customers")
-		.select("id, upgraded_from_enquiry_id, upgraded_from_enquiry_at");
-
-	const upgradedInPeriod = (enquiryUpgradedCustomers ?? []).filter(
-		(c: any) =>
-			!!c.upgraded_from_enquiry_id && inRange(c.upgraded_from_enquiry_at ?? "", start, end)
-	);
-
-	const upgradedCustomerIds = new Set(upgradedInPeriod.map((c: any) => c.id));
-	const convertedSales = filteredSales.filter(
-		(s: any) => !!s.customer_id && upgradedCustomerIds.has(s.customer_id)
-	);
-	const boughtUpgradedCustomerIds = new Set(
-		convertedSales.map((s: any) => s.customer_id)
-	);
-
-	// 12b. Enquiry category breakdown (from upgraded customers)
-	const enquiryIds = upgradedInPeriod
-		.map((c: any) => c.upgraded_from_enquiry_id)
-		.filter(Boolean);
-	const categoryCounts: Record<string, number> = {};
-	if (enquiryIds.length > 0) {
-		const { data: upgradedEnquiries } = await supabase
-			.from("enquiry_customers")
-			.select("id, category")
-			.in("id", enquiryIds);
-
-		for (const e of upgradedEnquiries ?? []) {
-			const cat = (e as any).category ?? "other";
-			categoryCounts[cat] = (categoryCounts[cat] ?? 0) + 1;
-		}
-	}
-
-	const enquiryConvertedRevenue = convertedSales.reduce(
-		(sum, s: any) => sum + Number(s.total_sale_amount ?? 0),
-		0
-	);
-
-	// 13. Base Lead Stats (always available)
-	let allCustomersQuery = supabase.from("customers").select("id, lead_status, is_active");
-	if (role === "advisor" && advisorId) {
-		allCustomersQuery = allCustomersQuery.or(`advisor_id.eq.${advisorId},source_advisor_id.eq.${advisorId}`);
-	}
-	const { data: allCustomers } = await allCustomersQuery;
-
-	const baseLeadStats = {
-		total: allCustomers?.length ?? 0,
-		active: (allCustomers ?? []).filter(c => 
-			!c.lead_status?.includes("Won") && !c.lead_status?.includes("Lost")
-		).length,
-		won: (allCustomers ?? []).filter(c => c.lead_status?.includes("Won")).length,
-		lost: (allCustomers ?? []).filter(c => c.lead_status?.includes("Lost")).length,
-	};
-
-	// 14. Sale count by month (for trend)
-	const salesByMonth: Record<string, { count: number; value: number }> = {};
-	for (const s of filteredSales) {
-		const dt = (s as any).created_at ?? "";
-		const month = dt.slice(0, 7);
-		const prev = salesByMonth[month] ?? { count: 0, value: 0 };
-		prev.count += 1;
-		prev.value += Number((s as any).total_sale_amount ?? 0);
-		salesByMonth[month] = prev;
-	}
-
-	return {
-		summary: {
-			totalSalesValue,
-			totalRevenueCollected,
-			totalOutstanding,
-			totalExpenses,
-			netProfit: totalRevenueCollected - totalExpenses,
-			salesCount: filteredSales.length,
-			paymentsCount: filteredPayments.length,
-			enquiryConvertedCustomers: upgradedInPeriod.length,
-			enquiryConvertedCustomersBoughtPlots: boughtUpgradedCustomerIds.size,
-			enquiryConvertedRevenue,
-			totalExtraCommissionPaid,
-		},
-		enquiryConversionTopCategories: Object.entries(categoryCounts)
-			.map(([category, count]) => ({ category, count }))
-			.sort((a, b) => b.count - a.count)
-			.slice(0, 5),
-		baseLeadStats,
-		advisorPerformance,
-		projectStats,
-		revenueByProject: Object.entries(revenueByProject).map(([name, v]) => ({ name, value: v })),
-		revenueByPhase: Object.entries(revenueByPhase).map(([phase, v]) => ({ phase, value: v })),
-		topAdvisors,
-		expenseByCategory: Object.entries(expenseByCategory).map(([cat, v]) => ({ category: cat, value: v })),
-		collectionsVsOutstanding,
-		newCustomersInPeriod,
-		salesByMonth: Object.entries(salesByMonth)
-			.map(([month, v]) => ({ month, ...v }))
-			.sort((a, b) => a.month.localeCompare(b.month)),
-	};
+  return {
+    summary: {
+      totalSalesValue,
+      totalRevenueCollected,
+      totalOutstanding,
+      totalExpenses,
+      netProfit: totalRevenueCollected - totalExpenses,
+      salesCount: filteredSales.length,
+      paymentsCount: filteredPayments.length,
+      enquiryConvertedCustomers: convertedInPeriod.length,
+      enquiryConvertedCustomersBoughtPlots: new Set(convertedSales.map((sale: any) => sale.customer_id)).size,
+      enquiryConvertedRevenue,
+      totalExtraCommissionPaid,
+    },
+    enquiryConversionTopCategories: Object.entries(conversionCategoryCounts)
+      .map(([category, count]) => ({ category, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5),
+    baseLeadStats,
+    advisorPerformance,
+    projectStats,
+    revenueByProject: Object.entries(revenueByProject).map(([name, value]) => ({ name, value })),
+    revenueByPhase: Object.entries(revenueByPhase).map(([phase, value]) => ({ phase, value })),
+    topAdvisors: Object.entries(topAdvisorSales)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10),
+    expenseByCategory: Object.entries(expenseByCategory).map(([category, value]) => ({ category, value })),
+    collectionsVsOutstanding: {
+      collected: totalRevenueCollected,
+      outstanding: totalOutstanding,
+      total: totalSalesValue,
+    },
+    newCustomersInPeriod,
+    salesByMonth: Object.entries(salesByMonth)
+      .map(([month, value]) => ({ month, ...value }))
+      .sort((a, b) => a.month.localeCompare(b.month)),
+  };
 }
 
-export async function getProjectAnalytics(projectId: string) {
-	const supabase = await createClient();
-	if (!supabase) return null;
+export async function getProjectAnalytics(projectId: string, filters?: ReportFilters) {
+  const supabase = await createClient();
+  if (!supabase) return null;
+  const start = filters?.startDate ? toDateOnly(filters.startDate) : undefined;
+  const end = filters?.endDate ? toDateOnly(filters.endDate) : undefined;
 
-	const { data: project, error: projErr } = await supabase
-		.from("projects")
-		.select("id, name, location, layout_expense")
-		.eq("id", projectId)
-		.single();
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
+    .select("id, name, location, layout_expense")
+    .eq("id", projectId)
+    .single();
+  if (projectError || !project) return null;
 
-	if (projErr || !project) return null;
+  const { data: plots } = await supabase
+    .from("plots")
+    .select("id, plot_number, status, size_sqft, rate_per_sqft")
+    .eq("project_id", projectId);
 
-	const { data: plots } = await supabase
-		.from("plots")
-		.select("id, plot_number, status, size_sqft, rate_per_sqft")
-		.eq("project_id", projectId);
+  const { role, advisorId } = await getScopeContext(supabase as any);
 
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
-	const role = (user?.user_metadata as any)?.role;
+  const plotIds = (plots ?? []).map((plot: any) => plot.id);
+  let salesQuery = supabase
+    .from("plot_sales")
+    .select("id, advisor_id, total_sale_amount, amount_paid, remaining_amount, sold_by_admin, advisors(name)")
+    .in("plot_id", plotIds)
+    .eq("is_cancelled", false);
 
-	const plotIds = (plots ?? []).map((p: any) => p.id);
-	const total = plots?.length ?? 0;
-	const sold = (plots ?? []).filter(
-		(p: any) => p.status === "sold" || p.status === "agreement" || p.status === "token"
-	).length;
-	const available = (plots ?? []).filter((p: any) => p.status === "available").length;
+  if (role === "advisor") {
+    if (!advisorId) return null;
+    salesQuery = salesQuery.eq("advisor_id", advisorId);
+  }
 
-	let salesQuery = supabase
-		.from("plot_sales")
-		.select("id, total_sale_amount, amount_paid, remaining_amount, sold_by_admin, advisors(name), customers(source_advisor_id)")
-		.in("plot_id", plotIds)
-		.eq("is_cancelled", false);
+  const { data: sales } = await salesQuery;
+  const filteredSales = (sales ?? []).filter(
+    (sale: any) => (!start && !end) || inRange(sale.created_at ?? "", start, end),
+  );
 
-	if (role === "advisor") {
-		const { data: adv } = await supabase
-			.from("advisors")
-			.select("id")
-			.eq("auth_user_id", user!.id)
-			.single();
-		if (adv?.id) {
-			salesQuery = salesQuery.or(`advisor_id.eq.${adv.id},customers.source_advisor_id.eq.${adv.id}`);
-		} else {
-			return null; // Restricted
-		}
-	}
+  const advisorSales: Record<string, number> = {};
+  for (const sale of filteredSales) {
+    const label = (sale as any).sold_by_admin ? "Admin (Direct)" : (sale as any).advisors?.name ?? "Unknown";
+    advisorSales[label] = (advisorSales[label] ?? 0) + Number((sale as any).total_sale_amount ?? 0);
+  }
 
-	const { data: sales } = await salesQuery;
+  const { data: commissions } = filteredSales.length
+    ? await supabase
+        .from("advisor_commissions")
+        .select("id, sale_id")
+        .in("sale_id", filteredSales.map((sale: any) => sale.id))
+    : { data: [] as any[] };
 
-	const totalRevenue = (sales ?? []).reduce((sum: number, s: any) => sum + Number(s.amount_paid ?? 0), 0);
-	const totalSalesValue = (sales ?? []).reduce((sum: number, s: any) => sum + Number(s.total_sale_amount ?? 0), 0);
-	const outstanding = (sales ?? []).reduce((sum: number, s: any) => sum + Number(s.remaining_amount ?? 0), 0);
+  let extraCommissionPaid = 0;
+  if ((commissions ?? []).length > 0) {
+    const { data: payments, error: paymentsError } = await supabase
+      .from("advisor_commission_payments")
+      .select("extra_paid_amount")
+      .in("commission_id", (commissions ?? []).map((commission: any) => commission.id));
+    const safePayments =
+      paymentsError && (paymentsError.message || "").toLowerCase().includes("extra_paid_amount")
+        ? []
+        : payments ?? [];
+    const filteredPayments = safePayments.filter(
+      (payment: any) => (!start && !end) || inRange(payment.paid_date ?? "", start, end),
+    );
+    extraCommissionPaid = filteredPayments.reduce(
+      (sum: number, payment: any) => sum + Number(payment.extra_paid_amount ?? 0),
+      0,
+    );
+  }
 
-	const advisorSales: Record<string, number> = {};
-	for (const s of sales ?? []) {
-		const name = (s as any).sold_by_admin ? "Admin (Direct)" : (s as any).advisors?.name ?? "Unknown";
-		advisorSales[name] = (advisorSales[name] ?? 0) + Number((s as any).total_sale_amount ?? 0);
-	}
-	const advisorsInProject = Object.entries(advisorSales)
-		.map(([name, value]) => ({ name, value }))
-		.sort((a, b) => b.value - a.value);
-
-	const topPlots = (plots ?? [])
-		.filter((p: any) => p.status !== "available")
-		.map((p: any) => ({
-			plot_number: p.plot_number,
-			status: p.status,
-			value: Number(p.size_sqft ?? 0) * Number(p.rate_per_sqft ?? 0),
-		}))
-		.sort((a: any, b: any) => b.value - a.value)
-		.slice(0, 10);
-
-	const { data: comms } = await supabase
-		.from("advisor_commissions")
-		.select("id, sale_id")
-		.in("sale_id", (sales ?? []).map((s: any) => s.id));
-	const commissionIds = (comms ?? []).map((c: any) => c.id);
-
-	let extraCommissionPaid = 0;
-	if (commissionIds.length > 0) {
-		const { data: commPayments, error: commPaymentsErr } = await supabase
-			.from("advisor_commission_payments")
-			.select("extra_paid_amount")
-			.in("commission_id", commissionIds);
-		const safeCommPayments =
-			commPaymentsErr &&
-			(commPaymentsErr.message || "").toLowerCase().includes("extra_paid_amount")
-				? []
-				: commPayments ?? [];
-		extraCommissionPaid = safeCommPayments.reduce(
-			(sum: number, p: any) => sum + Number(p.extra_paid_amount ?? 0),
-			0
-		);
-	}
-
-	return {
-		project: project as any,
-		plots: { total, sold, available },
-		revenue: { total: totalRevenue, salesValue: totalSalesValue, outstanding },
-		layoutExpense: Number((project as any).layout_expense ?? 0),
-		extraCommissionPaid,
-		advisors: advisorsInProject,
-		topPlots,
-	};
+  return {
+    project: project as any,
+    plots: {
+      total: plots?.length ?? 0,
+      sold: (plots ?? []).filter((plot: any) => ["sold", "agreement", "token"].includes(plot.status)).length,
+      available: (plots ?? []).filter((plot: any) => plot.status === "available").length,
+    },
+    revenue: {
+      total: filteredSales.reduce((sum: number, sale: any) => sum + Number(sale.amount_paid ?? 0), 0),
+      salesValue: filteredSales.reduce((sum: number, sale: any) => sum + Number(sale.total_sale_amount ?? 0), 0),
+      outstanding: filteredSales.reduce((sum: number, sale: any) => sum + Number(sale.remaining_amount ?? 0), 0),
+    },
+    layoutExpense: Number((project as any).layout_expense ?? 0),
+    extraCommissionPaid,
+    advisors: Object.entries(advisorSales)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value),
+    topPlots: (plots ?? [])
+      .filter((plot: any) => {
+        if (plot.status === "available") return false;
+        if (!start && !end) return true;
+        const plotSale = filteredSales.find((sale: any) => sale.plot_id === plot.id);
+        return Boolean(plotSale);
+      })
+      .map((plot: any) => ({
+        plot_number: plot.plot_number,
+        status: plot.status,
+        value: Number(plot.size_sqft ?? 0) * Number(plot.rate_per_sqft ?? 0),
+      }))
+      .sort((a: any, b: any) => b.value - a.value)
+      .slice(0, 10),
+  };
 }
 
 function getEmptyReport() {
-	return {
-		summary: {
-			totalSalesValue: 0,
-			totalRevenueCollected: 0,
-			totalOutstanding: 0,
-			totalExpenses: 0,
-			netProfit: 0,
-			salesCount: 0,
-			paymentsCount: 0,
-			enquiryConvertedCustomers: 0,
-			enquiryConvertedCustomersBoughtPlots: 0,
-			enquiryConvertedRevenue: 0,
-			totalExtraCommissionPaid: 0,
-		},
-		enquiryConversionTopCategories: [] as { category: string; count: number }[],
-		advisorPerformance: [] as { name: string; totalCommission: number; paidCommission: number; pending: number }[],
-		projectStats: [] as { name: string; total: number; sold: number; soldInPeriod: number; available: number }[],
-		revenueByProject: [] as { name: string; value: number }[],
-		revenueByPhase: [] as { phase: string; value: number }[],
-		topAdvisors: [] as { name: string; value: number }[],
-		expenseByCategory: [] as { category: string; value: number }[],
-		collectionsVsOutstanding: { collected: 0, outstanding: 0, total: 0 },
-		baseLeadStats: { total: 0, active: 0, won: 0, lost: 0 },
-		newCustomersInPeriod: 0,
-		salesByMonth: [] as { month: string; count: number; value: number }[],
-	};
+  return {
+    summary: {
+      totalSalesValue: 0,
+      totalRevenueCollected: 0,
+      totalOutstanding: 0,
+      totalExpenses: 0,
+      netProfit: 0,
+      salesCount: 0,
+      paymentsCount: 0,
+      enquiryConvertedCustomers: 0,
+      enquiryConvertedCustomersBoughtPlots: 0,
+      enquiryConvertedRevenue: 0,
+      totalExtraCommissionPaid: 0,
+    },
+    enquiryConversionTopCategories: [] as { category: string; count: number }[],
+    baseLeadStats: {
+      total: 0,
+      active: 0,
+      won: 0,
+      lost: 0,
+    },
+    advisorPerformance: [] as { name: string; totalCommission: number; paidCommission: number; pending: number }[],
+    projectStats: [] as { name: string; total: number; sold: number; soldInPeriod: number; available: number }[],
+    revenueByProject: [] as { name: string; value: number }[],
+    revenueByPhase: [] as { phase: string; value: number }[],
+    topAdvisors: [] as { name: string; value: number }[],
+    expenseByCategory: [] as { category: string; value: number }[],
+    collectionsVsOutstanding: { collected: 0, outstanding: 0, total: 0 },
+    newCustomersInPeriod: 0,
+    salesByMonth: [] as { month: string; count: number; value: number }[],
+  };
 }

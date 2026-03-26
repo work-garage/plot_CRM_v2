@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { getModuleSettings, updateModuleSettings, type ModuleSettings } from "@/app/actions/settings";
 import { toast } from "sonner";
 
@@ -26,6 +27,7 @@ export function ModuleProvider({ children }: { children: React.ReactNode }) {
 	const [modules, setModules] = useState<ModuleSettings>(defaultSettings);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isPending, startTransition] = useTransition();
+	const router = useRouter();
 
 	const fetchSettings = async () => {
 		try {
@@ -55,6 +57,7 @@ export function ModuleProvider({ children }: { children: React.ReactNode }) {
 				fetchSettings();
 			} else {
 				toast.success(`${key.charAt(0).toUpperCase() + key.slice(1)} module ${enabled ? 'enabled' : 'disabled'}`);
+				router.refresh();
 			}
 		});
 	};

@@ -4,18 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 import { getAdvisorCommissions } from "@/app/actions/commissions";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { Card, CardContent, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Badge } from "@/components/ui";
+import { requireModule } from "@/lib/server/modules";
+import { getScopeContext } from "@/lib/server/scope";
 
 export default async function AdvisorCommissionsPage() {
+  await requireModule("commissions", "/advisor");
   const supabase = await createClient();
   if (!supabase) redirect("/login");
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const role = (user.user_metadata as any)?.role;
-  const advisorId = (user.user_metadata as any)?.advisor_id as string | undefined;
+  const { user, role, advisorId } = await getScopeContext(supabase);
   if (role !== "advisor" || !advisorId) redirect("/dashboard");
 
   const commissions = await getAdvisorCommissions(advisorId);
@@ -95,10 +91,10 @@ export default async function AdvisorCommissionsPage() {
                       <TableCell>
                         <div className="flex flex-col text-xs">
                           <span className="font-semibold text-zinc-800">
-                            {comm.plot_sales?.plots?.plot_number ?? "—"}
+                            {comm.plot_sales?.plots?.plot_number ?? "-"}
                           </span>
                           <span className="text-zinc-500">
-                            {comm.plot_sales?.plots?.projects?.name ?? "—"}
+                            {comm.plot_sales?.plots?.projects?.name ?? "-"}
                           </span>
                         </div>
                       </TableCell>
@@ -172,7 +168,7 @@ export default async function AdvisorCommissionsPage() {
                           {p.reference_number ? ` • ${p.reference_number}` : ""}
                         </div>
                         <div className="text-[11px] text-zinc-400 truncate">
-                          {p._project ?? "—"} • {p._plot ?? "—"}
+                          {p._project ?? "-"} • {p._plot ?? "-"}
                         </div>
                         {p.note && (
                           <div className="text-[11px] text-zinc-500 mt-0.5 line-clamp-2">
@@ -193,4 +189,3 @@ export default async function AdvisorCommissionsPage() {
     </div>
   );
 }
-

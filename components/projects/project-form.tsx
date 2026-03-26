@@ -297,7 +297,7 @@ export function ProjectForm({ mode, initialData }: ProjectFormProps) {
 									<FormItem>
 										<FormLabel>Builder Name</FormLabel>
 										<FormControl>
-											<Input placeholder="e.g. MG Infra" {...field} value={field.value ?? ""} />
+											<Input placeholder="e.g. EstateFlow CRM" {...field} value={field.value ?? ""} />
 										</FormControl>
 										<FormMessage />
 									</FormItem>

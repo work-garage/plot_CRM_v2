@@ -36,6 +36,7 @@ export default async function EnquiriesPage() {
 			initialEnquiries={enquiries}
 			projects={projects}
 			advisors={advisors}
+			canManageOutcomes
 		/>
 	);
 }

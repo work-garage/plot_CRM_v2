@@ -28,6 +28,7 @@ export default async function AdvisorEnquiriesPage() {
 			initialEnquiries={enquiries}
 			projects={projects}
 			advisors={[]} // Advisor cannot reassign to other advisors
+			canManageOutcomes={false}
 		/>
 	);
 }

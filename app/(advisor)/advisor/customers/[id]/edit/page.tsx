@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { CustomerForm } from "@/components/customers/customer-form";
+import { getCustomerById } from "@/app/actions/customers";
+import { getScopeContext } from "@/lib/server/scope";
 
 export default async function AdvisorEditCustomerPage({
 	params,
@@ -12,22 +14,11 @@ export default async function AdvisorEditCustomerPage({
 
 	const supabase = await createClient();
 	if (!supabase) redirect("/login");
-
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const { user, role, advisorId } = await getScopeContext(supabase);
 	if (!user) redirect("/login");
-
-	const role = (user.user_metadata as any)?.role;
-	const advisorId = (user.user_metadata as any)?.advisor_id as string | undefined;
 	if (role !== "advisor" || !advisorId) redirect("/dashboard");
 
-	const { data: customer } = await supabase
-		.from("customers")
-		.select("*")
-		.eq("id", id)
-		.single();
-
+	const customer = await getCustomerById(id);
 	if (!customer || customer.advisor_id !== advisorId) redirect("/advisor/customers");
 
 	const { data: advisor } = await supabase
@@ -56,4 +47,3 @@ export default async function AdvisorEditCustomerPage({
 		</div>
 	);
 }
-

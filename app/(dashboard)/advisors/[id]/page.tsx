@@ -251,7 +251,7 @@ export default async function AdvisorDetailPage({
 													{phaseLabels[s.sale_phase] ?? s.sale_phase}
 												</Badge>
 											</TableCell>
-											<TableCell>{s.token_date ? formatDate(s.token_date) : "—"}</TableCell>
+											<TableCell>{s.token_date ? formatDate(s.token_date) : "-"}</TableCell>
 										</TableRow>
 									))}
 								</TableBody>

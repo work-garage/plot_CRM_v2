@@ -1,3 +1,4 @@
+import { requireModule } from "@/lib/server/modules";
 import { Suspense } from "react";
 import {
 	Building2,
@@ -16,16 +17,23 @@ import { Card, CardContent, CardHeader, CardTitle, Button } from "@/components/u
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { getProjectAnalytics, getReportStats } from "@/app/actions/reports";
+import { getModuleSettings } from "@/app/actions/settings";
 import Link from "next/link";
 import { ProjectSelector } from "@/components/reports/project-selector";
+import { ReportsFilters } from "@/components/reports/reports-filters";
 
 export default async function ReportsPage({
 	searchParams,
 }: {
 	searchParams: Promise<{ from?: string; to?: string; project?: string }>;
 }) {
+	await requireModule("reports", "/dashboard");
 	const params = await searchParams;
 	const projectId = params.project ?? "";
+	const reportFilters = {
+		startDate: params.from ?? undefined,
+		endDate: params.to ?? undefined,
+	};
 
 	const supabase = await createClient();
 	if (!supabase) {
@@ -42,15 +50,18 @@ export default async function ReportsPage({
 		.eq("is_active", true)
 		.order("name");
 
-	const projectAnalytics = projectId ? await getProjectAnalytics(projectId) : null;
-	const reportStats = await getReportStats({
-		startDate: params.from ?? undefined,
-		endDate: params.to ?? undefined,
-	});
+	const [projectAnalytics, reportStats, modules] = await Promise.all([
+		projectId ? getProjectAnalytics(projectId, reportFilters) : Promise.resolve(null),
+		getReportStats(reportFilters),
+		getModuleSettings(),
+	]);
 
 	// Overview stats (all projects or when no project selected)
 	const { count: projectsCount } = await supabase.from("projects").select("*", { count: "exact", head: true });
-	const { count: customersCount } = await supabase.from("customers").select("*", { count: "exact", head: true });
+	const { count: customersCount } = await supabase
+		.from("customers")
+		.select("*", { count: "exact", head: true })
+		.eq("lead_status", "🎉 Closed Won");
 	const { data: sales } = await supabase.from("plot_sales").select("total_sale_amount, amount_paid").eq("is_cancelled", false);
 	const { data: recentReminders } = await supabase
 		.from("reminders")
@@ -73,6 +84,10 @@ export default async function ReportsPage({
 				<ProjectSelector projects={projects ?? []} />
 			</Suspense>
 
+			<Suspense fallback={<div className="h-9 w-64 bg-zinc-100 rounded animate-pulse" />}>
+				<ReportsFilters preserveKeys={["project"]} />
+			</Suspense>
+
 			{projectId && projectAnalytics ? (
 				<>
 					{/* Project-specific analytics */}
@@ -80,39 +95,52 @@ export default async function ReportsPage({
 						<StatCard title="Plots Total" value={String(projectAnalytics.plots.total)} icon={Home} color="blue" />
 						<StatCard title="Plots Sold" value={String(projectAnalytics.plots.sold)} icon={Handshake} color="green" />
 						<StatCard title="Plots Available" value={String(projectAnalytics.plots.available)} icon={Building2} color="zinc" />
-						<StatCard title="Revenue Collected" value={formatCurrency(projectAnalytics.revenue.total)} icon={CreditCard} color="orange" />
-						<StatCard title="Extra Commission Paid" value={formatCurrency((projectAnalytics as any).extraCommissionPaid ?? 0)} icon={CreditCard} color="zinc" />
+						{modules.payments && (
+							<StatCard title="Revenue Collected" value={formatCurrency(projectAnalytics.revenue.total)} icon={CreditCard} color="orange" />
+						)}
+						{modules.commissions && (
+							<StatCard title="Extra Commission Paid" value={formatCurrency((projectAnalytics as any).extraCommissionPaid ?? 0)} icon={CreditCard} color="zinc" />
+						)}
 					</div>
 
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-						<Card>
-							<CardHeader>
-								<CardTitle className="text-sm font-bold flex items-center gap-2">
-									<BarChart3 className="h-4 w-4" /> Revenue Summary
-								</CardTitle>
-							</CardHeader>
-							<CardContent className="space-y-4">
-								<div className="flex justify-between">
-									<span className="text-zinc-600">Total Sales Value</span>
-									<span className="font-bold">{formatCurrency(projectAnalytics.revenue.salesValue)}</span>
-								</div>
-								<div className="flex justify-between text-green-600">
-									<span>Collected</span>
-									<span className="font-bold">{formatCurrency(projectAnalytics.revenue.total)}</span>
-								</div>
-								<div className="flex justify-between text-red-600">
-									<span>Outstanding</span>
-									<span className="font-bold">{formatCurrency(projectAnalytics.revenue.outstanding)}</span>
-								</div>
-								{projectAnalytics.layoutExpense > 0 && (
-									<div className="flex justify-between text-zinc-600 pt-2 border-t">
-										<span>Layout Expense</span>
-										<span className="font-bold">{formatCurrency(projectAnalytics.layoutExpense)}</span>
-									</div>
-								)}
-							</CardContent>
-						</Card>
+						{(modules.sales || modules.payments || modules.expenses) && (
+							<Card>
+								<CardHeader>
+									<CardTitle className="text-sm font-bold flex items-center gap-2">
+										<BarChart3 className="h-4 w-4" /> Revenue Summary
+									</CardTitle>
+								</CardHeader>
+								<CardContent className="space-y-4">
+									{modules.sales && (
+										<div className="flex justify-between">
+											<span className="text-zinc-600">Total Sales Value</span>
+											<span className="font-bold">{formatCurrency(projectAnalytics.revenue.salesValue)}</span>
+										</div>
+									)}
+									{modules.payments && (
+										<>
+											<div className="flex justify-between text-green-600">
+												<span>Collected</span>
+												<span className="font-bold">{formatCurrency(projectAnalytics.revenue.total)}</span>
+											</div>
+											<div className="flex justify-between text-red-600">
+												<span>Outstanding</span>
+												<span className="font-bold">{formatCurrency(projectAnalytics.revenue.outstanding)}</span>
+											</div>
+										</>
+									)}
+									{modules.expenses && projectAnalytics.layoutExpense > 0 && (
+										<div className="flex justify-between text-zinc-600 pt-2 border-t">
+											<span>Layout Expense</span>
+											<span className="font-bold">{formatCurrency(projectAnalytics.layoutExpense)}</span>
+										</div>
+									)}
+								</CardContent>
+							</Card>
+						)}
 
+						{modules.sales && (
 						<Card>
 							<CardHeader>
 								<CardTitle className="text-sm font-bold flex items-center gap-2">
@@ -131,7 +159,9 @@ export default async function ReportsPage({
 								</div>
 							</CardContent>
 						</Card>
+						)}
 
+						{modules.sales && (
 						<Card className="lg:col-span-2">
 							<CardHeader>
 								<CardTitle className="text-sm font-bold flex items-center gap-2">
@@ -151,6 +181,7 @@ export default async function ReportsPage({
 								</div>
 							</CardContent>
 						</Card>
+						)}
 					</div>
 				</>
 			) : (
@@ -158,15 +189,17 @@ export default async function ReportsPage({
 					{/* Overview when no project selected */}
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 						<StatCard title="Total Projects" value={projectsCount?.toString() || "0"} icon={Building2} color="blue" />
-						<StatCard title="Active Customers" value={customersCount?.toString() || "0"} icon={Users} color="green" />
-						<StatCard title="Total Sales" value={formatCurrency(totalSalesValue)} icon={Handshake} color="orange" />
-						<StatCard title="Revenue Collected" value={formatCurrency(totalCollected)} icon={CreditCard} color="zinc" />
-						<StatCard
-							title="Extra Commission Paid"
-							value={formatCurrency((reportStats.summary as any).totalExtraCommissionPaid ?? 0)}
-							icon={CreditCard}
-							color="orange"
-						/>
+						<StatCard title="Closed Won Customers" value={customersCount?.toString() || "0"} icon={Users} color="green" />
+						{modules.sales && <StatCard title="Total Sales" value={formatCurrency(totalSalesValue)} icon={Handshake} color="orange" />}
+						{modules.payments && <StatCard title="Revenue Collected" value={formatCurrency(totalCollected)} icon={CreditCard} color="zinc" />}
+						{modules.commissions && (
+							<StatCard
+								title="Extra Commission Paid"
+								value={formatCurrency((reportStats.summary as any).totalExtraCommissionPaid ?? 0)}
+								icon={CreditCard}
+								color="orange"
+							/>
+						)}
 					</div>
 
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -207,30 +240,36 @@ export default async function ReportsPage({
 								<CardTitle className="text-base font-bold">Quick Actions</CardTitle>
 							</CardHeader>
 							<CardContent className="grid grid-cols-2 gap-3">
-								<Link href="/sales/new">
-									<Button variant="outline" className="w-full justify-start h-auto py-3 px-4 flex-col items-start gap-1">
-										<span className="font-bold text-sm text-zinc-900">New Sale</span>
-										<span className="text-[10px] text-zinc-500 uppercase font-bold tracking-tighter">Record booking</span>
-									</Button>
-								</Link>
-								<Link href="/payments/new">
-									<Button variant="outline" className="w-full justify-start h-auto py-3 px-4 flex-col items-start gap-1">
-										<span className="font-bold text-sm text-zinc-900">Collect Payment</span>
-										<span className="text-[10px] text-zinc-500 uppercase font-bold tracking-tighter">Record installment</span>
-									</Button>
-								</Link>
 								<Link href="/customers/new">
 									<Button variant="outline" className="w-full justify-start h-auto py-3 px-4 flex-col items-start gap-1">
 										<span className="font-bold text-sm text-zinc-900">Add Customer</span>
 										<span className="text-[10px] text-zinc-500 uppercase font-bold tracking-tighter">New lead/buyer</span>
 									</Button>
 								</Link>
-								<Link href="/expenses/new">
-									<Button variant="outline" className="w-full justify-start h-auto py-3 px-4 flex-col items-start gap-1">
-										<span className="font-bold text-sm text-zinc-900">Add Expense</span>
-										<span className="text-[10px] text-zinc-500 uppercase font-bold tracking-tighter">Office outflow</span>
-									</Button>
-								</Link>
+								{modules.sales && (
+									<Link href="/sales/new">
+										<Button variant="outline" className="w-full justify-start h-auto py-3 px-4 flex-col items-start gap-1">
+											<span className="font-bold text-sm text-zinc-900">New Sale</span>
+											<span className="text-[10px] text-zinc-500 uppercase font-bold tracking-tighter">Record booking</span>
+										</Button>
+									</Link>
+								)}
+								{modules.payments && (
+									<Link href="/payments/new">
+										<Button variant="outline" className="w-full justify-start h-auto py-3 px-4 flex-col items-start gap-1">
+											<span className="font-bold text-sm text-zinc-900">Collect Payment</span>
+											<span className="text-[10px] text-zinc-500 uppercase font-bold tracking-tighter">Record installment</span>
+										</Button>
+									</Link>
+								)}
+								{modules.expenses && (
+									<Link href="/expenses/new">
+										<Button variant="outline" className="w-full justify-start h-auto py-3 px-4 flex-col items-start gap-1">
+											<span className="font-bold text-sm text-zinc-900">Add Expense</span>
+											<span className="text-[10px] text-zinc-500 uppercase font-bold tracking-tighter">Office outflow</span>
+										</Button>
+									</Link>
+								)}
 							</CardContent>
 						</Card>
 					</div>
@@ -239,3 +278,4 @@ export default async function ReportsPage({
 		</div>
 	);
 }
+

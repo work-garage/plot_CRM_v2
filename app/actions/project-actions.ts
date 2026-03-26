@@ -7,6 +7,7 @@ import {
 	projectSchema,
 	type ProjectFormValues,
 } from "@/lib/validations/project";
+import { isClosedLostStatus, isClosedWonStatus } from "@/lib/constants/lead-status";
 
 export type ActionResponse = {
 	success: boolean;
@@ -264,7 +265,7 @@ export async function getProjectWithStats(
         sale_phase,
         plot_id,
         plots(plot_number),
-        customers(name, source_advisor_id),
+        customers(name, advisor_id),
         advisors(name)
       `
 			)
@@ -273,8 +274,8 @@ export async function getProjectWithStats(
 			.order("created_at", { ascending: false });
 
 		if (role === "advisor" && advisorId) {
-			// Visibility: Sourced OR Assigned
-			salesQuery = salesQuery.or(`advisor_id.eq.${advisorId},customers.source_advisor_id.eq.${advisorId}`);
+			// Visibility: only sales assigned to this advisor
+			salesQuery = salesQuery.eq("advisor_id", advisorId);
 		}
 
 		const { data: sales } = await salesQuery.limit(5);
@@ -304,8 +305,8 @@ export async function getProjectWithStats(
 		.eq("project_id", id);
 
 	if (role === "advisor" && advisorId) {
-		// Filter by advisor visibility via customers join
-		baseIntQuery = baseIntQuery.or(`customers.advisor_id.eq.${advisorId},customers.source_advisor_id.eq.${advisorId}`);
+		// Filter by advisor visibility via assigned advisor only
+		baseIntQuery = baseIntQuery.eq("customers.advisor_id", advisorId);
 	}
 
 	const { data: intData } = await baseIntQuery;
@@ -378,3 +379,4 @@ export async function getProjectsWithPlotCounts() {
 		},
 	}));
 }
+

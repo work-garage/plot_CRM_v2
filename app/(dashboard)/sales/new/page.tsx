@@ -2,14 +2,16 @@ import { PageHeader } from "@/components/shared/page-header";
 import { SaleForm } from "@/components/sales/sale-form";
 import { createClient } from "@/lib/supabase/server";
 import { getAdvisors } from "@/app/actions/advisors";
-import { getCustomers } from "@/app/actions/customers";
+import { getSaleCandidates } from "@/app/actions/customers";
 import { getAdvisorAssignments } from "@/app/actions/advisor-projects";
+import { requireModule } from "@/lib/server/modules";
 
 export default async function NewSalePage({
 	searchParams,
 }: {
 	searchParams?: Promise<{ plotId?: string }>;
 }) {
+	await requireModule("sales", "/dashboard");
 	const sp = (await searchParams) ?? {};
 
 	const supabase = await createClient();
@@ -23,7 +25,7 @@ export default async function NewSalePage({
 		.order("plot_number", { ascending: true });
 
 	const advisors = await getAdvisors();
-	const customers = await getCustomers();
+	const customers = await getSaleCandidates();
 	const advisorAssignments = await getAdvisorAssignments();
 
 	return (

@@ -77,13 +77,13 @@ export default function LoginPage() {
 						className="w-full max-w-md bg-zinc-100/90 border border-zinc-200/70 shadow-xl"
 					>
 				<CardHeader className="text-center space-y-4">
-					<div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-zinc-900 dark:bg-zinc-100">
-						<Building2 className="h-8 w-8 text-white dark:text-zinc-900" />
+					<div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-zinc-900 dark:bg-zinc-100">
+						<Building2 className="h-10 w-10 text-white dark:text-zinc-900" />
 					</div>
 					<div>
-						<CardTitle className="text-2xl font-bold">PLOT CRM</CardTitle>
+						<CardTitle className="text-2xl font-bold">EstateFlow CRM</CardTitle>
 						<CardDescription className="text-sm mt-1">
-							Estate Management + CRM
+							EstateFlow CRM login
 						</CardDescription>
 					</div>
 				</CardHeader>
@@ -127,14 +127,14 @@ export default function LoginPage() {
 													type="button"
 													variant="ghost"
 													size="sm"
-													className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+													className="absolute right-1 top-1/2 -translate-y-1/2 h-10 w-10 p-0"
 													onClick={() => setShowPassword((v) => !v)}
 													aria-label={showPassword ? "Hide password" : "Show password"}
 												>
 													{showPassword ? (
-														<EyeOff className="h-4 w-4" />
+														<EyeOff className="h-5 w-5" />
 													) : (
-														<Eye className="h-4 w-4" />
+														<Eye className="h-5 w-5" />
 													)}
 												</Button>
 											</div>

@@ -79,7 +79,7 @@ export default async function DashboardPage({
 						<Card className="bg-zinc-900 text-white border-zinc-800">
 							<CardHeader className="pb-2">
 								<CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1">
-									<IndianRupee className="h-3 w-3" /> Total Sales Value
+									<IndianRupee className="h-4 w-4" /> Total Sales Value
 								</CardTitle>
 							</CardHeader>
 							<CardContent>
@@ -92,7 +92,7 @@ export default async function DashboardPage({
 						<Card>
 							<CardHeader className="pb-2">
 								<CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-500 flex items-center gap-1">
-									<TrendingUp className="h-3 w-3 text-green-500" /> Revenue Collected
+									<TrendingUp className="h-4 w-4 text-green-500" /> Revenue Collected
 								</CardTitle>
 							</CardHeader>
 							<CardContent>
@@ -105,7 +105,7 @@ export default async function DashboardPage({
 						<Card>
 							<CardHeader className="pb-2">
 								<CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-500 flex items-center gap-1">
-									<TrendingDown className="h-3 w-3 text-red-500" /> Total Expenses
+									<TrendingDown className="h-4 w-4 text-red-500" /> Total Expenses
 								</CardTitle>
 							</CardHeader>
 							<CardContent>
@@ -117,7 +117,7 @@ export default async function DashboardPage({
 						<Card>
 							<CardHeader className="pb-2">
 								<CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-500 flex items-center gap-1">
-									<Wallet className="h-3 w-3 text-blue-500" /> Net Profit (Cash)
+									<Wallet className="h-4 w-4 text-blue-500" /> Net Profit (Cash)
 								</CardTitle>
 							</CardHeader>
 							<CardContent>
@@ -129,7 +129,7 @@ export default async function DashboardPage({
 						<Card>
 							<CardHeader className="pb-2">
 								<CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-500 flex items-center gap-1">
-									<IndianRupee className="h-3 w-3 text-amber-600" /> Extra Commission Paid
+									<IndianRupee className="h-4 w-4 text-amber-600" /> Extra Commission Paid
 								</CardTitle>
 							</CardHeader>
 							<CardContent>

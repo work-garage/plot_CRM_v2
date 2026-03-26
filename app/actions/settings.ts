@@ -43,8 +43,18 @@ export async function updateModuleSettings(settings: Partial<ModuleSettings>) {
 
 	if (error) return { success: false, error: error.message };
 
-	revalidatePath("/");
-	revalidatePath("/(dashboard)", "layout");
+	revalidatePath("/", "layout");
+	revalidatePath("/dashboard");
+	revalidatePath("/advisor");
+	revalidatePath("/advisors/analytics");
+	revalidatePath("/reports");
+	revalidatePath("/sales");
+	revalidatePath("/payments");
+	revalidatePath("/commissions");
+	revalidatePath("/expenses");
+	revalidatePath("/advisor/sales");
+	revalidatePath("/advisor/payments");
+	revalidatePath("/advisor/commissions");
 	return { success: true };
 }
 

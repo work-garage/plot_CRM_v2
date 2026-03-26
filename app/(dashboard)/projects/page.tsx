@@ -27,8 +27,8 @@ export default async function ProjectsPage() {
 
       {projects.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-zinc-300 p-16 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100 mb-4">
-            <Building2 className="h-8 w-8 text-zinc-400" />
+          <div className="flex h-18 w-18 items-center justify-center rounded-full bg-zinc-100 mb-4">
+            <Building2 className="h-10 w-10 text-zinc-400" />
           </div>
           <h3 className="text-lg font-semibold">No projects yet</h3>
           <p className="text-sm text-zinc-500 mt-1 mb-4">

@@ -42,13 +42,13 @@ export function Header({ onMenuClick = () => {} }: HeaderProps) {
 		let displayName =
 			meta.name || meta.full_name || user.user_metadata?.name || null;
 
-		// For advisors, prefer the name from the advisors table instead of the login email
-		if (meta.role === "advisor" && meta.advisor_id) {
+		// For advisors, resolve by auth user id so stale metadata does not break the header.
+		if (meta.role === "advisor") {
 			const { data: advisor } = await supabase
 				.from("advisors")
 				.select("name")
-				.eq("id", meta.advisor_id)
-				.single();
+				.eq("auth_user_id", user.id)
+				.maybeSingle();
 
 			if (advisor?.name) {
 				displayName = advisor.name;
@@ -109,7 +109,7 @@ export function Header({ onMenuClick = () => {} }: HeaderProps) {
                 type="button"
                 className="h-9 border shadow-sm bg-background hover:bg-zinc-50 dark:hover:bg-zinc-900"
               >
-                <User className="h-4 w-4 text-zinc-500 mr-2" />
+                <User className="h-[18px] w-[18px] text-zinc-500 mr-2" />
                 <span className="max-w-[140px] truncate text-zinc-800 dark:text-zinc-100">
                   {userInfo.name || userInfo.email || "User"}
                 </span>

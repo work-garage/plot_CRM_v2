@@ -30,10 +30,12 @@ export function EnquiriesClient({
 	initialEnquiries,
 	projects,
 	advisors = [],
+	canManageOutcomes = true,
 }: {
 	initialEnquiries: EnquiryRow[];
 	projects: Array<{ id: string; name: string }>;
 	advisors?: Array<{ id: string; name: string }>;
+	canManageOutcomes?: boolean;
 }) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
@@ -208,6 +210,7 @@ export function EnquiriesClient({
 				enquiry={editEnquiry}
 				projects={projects}
 				advisors={advisors}
+				canManageOutcomes={canManageOutcomes}
 			/>
 		</div>
 	);

@@ -55,6 +55,8 @@ export function AdvisorAnalyticsTable({
 	const [analytics, setAnalytics] = useState<Awaited<ReturnType<typeof getAdvisorAnalytics>> | null>(null);
 	const [loading, setLoading] = useState(false);
 	const { modules } = useModules();
+	const visibleColumnCount =
+		5 + (modules.sales ? 2 : 0) + (modules.payments ? 1 : 0) + (modules.commissions ? 1 : 0);
 
 	async function openAdvisor(id: string) {
 		setSelectedId(id);
@@ -91,7 +93,7 @@ export function AdvisorAnalyticsTable({
 						<TableBody>
 							{advisors.length === 0 ? (
 								<TableRow>
-									<TableCell colSpan={9} className="py-10 text-center text-sm text-zinc-500">
+									<TableCell colSpan={visibleColumnCount} className="py-10 text-center text-sm text-zinc-500">
 										No advisors yet.
 									</TableCell>
 								</TableRow>
@@ -99,7 +101,6 @@ export function AdvisorAnalyticsTable({
 								advisors.map((a) => {
 									const s = salesAgg[a.id] ?? { salesCount: 0, revenue: 0, due: 0 };
 									const c = commAgg[a.id] ?? { pending: 0, paid: 0, total: 0 };
-									const netRevenue = s.revenue - c.total;
 									return (
 										<TableRow
 											key={a.id}

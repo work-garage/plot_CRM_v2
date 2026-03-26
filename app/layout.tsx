@@ -30,9 +30,9 @@ export const metadata: Metadata = {
 		"nagpur",
 		"advisor commissions",
 	],
-	authors: [{ name: "EstateFlow" }],
-	creator: "EstateFlow",
-	publisher: "EstateFlow",
+	authors: [{ name: "EstateFlow CRM" }],
+	creator: "EstateFlow CRM",
+	publisher: "EstateFlow CRM",
 	icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
