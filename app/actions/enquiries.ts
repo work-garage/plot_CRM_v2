@@ -43,6 +43,7 @@ export type EnquiryRow = {
 	bhk_size: string | null;
 	preferred_location: string | null;
 	task_status: "Completed" | "Pending";
+	site_visit_date: string | null; // next_follow_up_date from latest follow-up with date scheduled
 };
 
 export async function getEnquiryCustomers(): Promise<EnquiryRow[]> {
@@ -67,7 +68,7 @@ export async function getEnquiryCustomers(): Promise<EnquiryRow[]> {
 				project_id, projects ( name )
 			),
 			customer_follow_ups (
-				whatsapp_done, call_done, site_visit_done, follow_up_date
+				whatsapp_done, call_done, site_visit_done, follow_up_date, next_follow_up_date
 			)
 		`)
 		.order("created_at", { ascending: false });
@@ -132,6 +133,16 @@ export async function getEnquiryCustomers(): Promise<EnquiryRow[]> {
 				);
 				const latest = sorted[0];
 				return (latest.whatsapp_done && latest.call_done && latest.site_visit_done) ? "Completed" : "Pending";
+			})(),
+			site_visit_date: (() => {
+				if (!c.customer_follow_ups?.length) return null;
+				// Sort follow-ups by date descending (newest first)
+				const sorted = [...c.customer_follow_ups].sort(
+					(a, b) => new Date(b.follow_up_date || 0).getTime() - new Date(a.follow_up_date || 0).getTime()
+				);
+				// Grab the most recent follow-up that scheduled a site visit date but visit not done yet
+				const withDate = sorted.find(f => f.next_follow_up_date && !f.site_visit_done);
+				return withDate?.next_follow_up_date ?? null;
 			})(),
 		};
 	}) as EnquiryRow[];

@@ -22,6 +22,8 @@ import type { EnquiryCustomerFormValues } from "@/lib/validations/enquiry";
 import type { EnquiryRow } from "@/app/actions/enquiries";
 import { updateEnquiryCustomer, upgradeEnquiryToCustomer, markLeadAsLost } from "@/app/actions/enquiries";
 import { CustomerFollowUps } from "./customer-follow-ups";
+import { getContactStatus } from "@/lib/crm-utils";
+import { cn } from "@/lib/utils";
 
 const LEAD_SOURCE_OPTIONS = ["Facebook", "Referral", "Website", "Assigned Advisor", "Other"] as const;
 const PROPERTY_TYPE_OPTIONS = ["Flats", "Plots", "Villas"] as const;
@@ -56,7 +58,7 @@ export function EnquiryEditModal({
 	const [saving, setSaving] = useState(false);
 	const [markingWon, setMarkingWon] = useState(false);
 	const [markingLost, setMarkingLost] = useState(false);
-	const [tab, setTab] = useState<"details" | "followup">("details");
+	const [tab, setTab] = useState<"details" | "followup">("followup");
 	const [form, setForm] = useState<EnquiryCustomerFormValues | null>(null);
 
 	useEffect(() => {
@@ -142,7 +144,20 @@ export function EnquiryEditModal({
 			<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
 				<DialogHeader>
 					<div className="flex items-center justify-between gap-2 flex-wrap">
-						<DialogTitle>Edit Lead — {enquiry.name}</DialogTitle>
+						<div className="flex flex-col gap-1">
+							<DialogTitle>Lead — {enquiry.name}</DialogTitle>
+							{/* Pipeline status badge for all lead states */}
+							{(() => {
+								const cs = getContactStatus(enquiry);
+								return (
+									<div className={cn(
+										"inline-flex items-center self-start rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+										cs.color
+									)}>
+										{cs.label}
+									</div>
+								);
+							})()}
 						<div className="flex gap-2">
 							{!isWon && !isLost && (
 								<>
@@ -162,21 +177,22 @@ export function EnquiryEditModal({
 							{isLost && <div className="text-xs bg-red-100 text-red-700 rounded-full px-3 py-1 font-semibold">✗ Closed Lost</div>}
 						</div>
 					</div>
+					</div>
 				</DialogHeader>
 
-				{/* Inner tabs */}
+				{/* Inner tabs — Follow-up Tracker FIRST */}
 				<div className="flex gap-0 border-b">
-					<button
-						className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === "details" ? "border-zinc-800 text-zinc-800" : "border-transparent text-zinc-500 hover:text-zinc-700"}`}
-						onClick={() => setTab("details")}
-					>
-						Lead Details
-					</button>
 					<button
 						className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === "followup" ? "border-zinc-800 text-zinc-800" : "border-transparent text-zinc-500 hover:text-zinc-700"}`}
 						onClick={() => setTab("followup")}
 					>
 						Follow-up Tracker
+					</button>
+					<button
+						className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === "details" ? "border-zinc-800 text-zinc-800" : "border-transparent text-zinc-500 hover:text-zinc-700"}`}
+						onClick={() => setTab("details")}
+					>
+						Lead Details
 					</button>
 				</div>
 

@@ -128,8 +128,17 @@ export function CustomerFollowUps({ customerId }: { customerId: string }) {
                                 <Input type="date" value={form.follow_up_date || ""} onChange={e => setForm(f => ({ ...f, follow_up_date: e.target.value }))} />
                             </div>
                             <div className="space-y-1">
-                                <div className="text-xs font-semibold uppercase text-zinc-500">Next Follow-up Date</div>
+                                <div className="text-xs font-semibold uppercase text-zinc-500">
+									{form.whatsapp_done && form.call_done
+										? "📅 Site Visit Date"
+										: "Next Follow-up Date"}
+                                </div>
                                 <Input type="date" value={form.next_follow_up_date || ""} onChange={e => setForm(f => ({ ...f, next_follow_up_date: e.target.value }))} />
+								{form.whatsapp_done && form.call_done && (
+									<p className="text-xs text-orange-600 mt-0.5">
+										Setting this date: lead → "Contact Done — Site Visit Pending"
+									</p>
+								)}
                             </div>
                         </div>
 

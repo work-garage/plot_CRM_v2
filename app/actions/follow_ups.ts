@@ -20,46 +20,36 @@ export type FollowUpPayload = {
 };
 
 
-function deriveLeadStatus(
-	data: FollowUpPayload,
-	currentStatus: string
-): string {
-	// Not Interested → immediate Closed Lost
+
+function deriveLeadStatus(data: FollowUpPayload, currentStatus: string): string {
+	// Customer says Not Interested → Closed Lost immediately
 	if (data.customer_mood === "Not Interested") return "Closed Lost";
 
-	// Site visit completed
+	// Never regress from a closed state
+	if (currentStatus === "Closed Won" || currentStatus === "Closed Lost") return currentStatus;
+
+	// Stage 3: Site visit physically happened
 	if (data.site_visit_done) return "Site Visit Done";
 
-	// Next follow-up date scheduled without site visit = planning it
-	if (!data.site_visit_done && data.next_follow_up_date) {
-		// Only advance to Site Visit Scheduled if already contacted
-		if (
-			["Contacted", "Follow-up", "Negotiation", "Site Visit Scheduled"].includes(currentStatus) === false &&
-			currentStatus !== "New Lead"
-		) {
-			return "Follow-up";
-		}
-		// Interested + next date = nudge toward negotiation
-		if (data.customer_mood === "Interested" && currentStatus === "Site Visit Done") {
-			return "Negotiation";
-		}
-		return currentStatus === "New Lead" ? "Contacted" : "Follow-up";
+	// Stage 2: Both WhatsApp AND Call done + site visit date scheduled
+	// → "Site Visit Scheduled" (display label: "Contact Done — Site Visit Pending")
+	if (data.whatsapp_done && data.call_done && data.next_follow_up_date) {
+		return "Site Visit Scheduled";
 	}
 
-	// Call done → at least Contacted
-	if (data.call_done || data.whatsapp_done) {
-		if (currentStatus === "New Lead") return "Contacted";
-		if (currentStatus === "Contacted") return "Follow-up";
+	// Stage 1: WhatsApp OR Call done (partial contact)
+	// → "Contacted" (display label: "Contact Pending")
+	if (data.whatsapp_done || data.call_done) {
+		// Never regress a lead that has already progressed further
+		const advancedStatuses = ["Site Visit Scheduled", "Site Visit Done", "Negotiation"];
+		if (advancedStatuses.includes(currentStatus)) return currentStatus;
+		return "Contacted";
 	}
 
-	// Interested mood + already in Follow-up/Site Visit Done → Negotiation
-	if (data.customer_mood === "Interested") {
-		if (currentStatus === "Site Visit Done") return "Negotiation";
-		if (currentStatus === "Follow-up") return "Negotiation";
-	}
-
-	return currentStatus; // No change
+	// No interaction checkboxes marked — keep current status (mood/notes only)
+	return currentStatus;
 }
+
 
 export async function addFollowUp(
 	customerId: string,
