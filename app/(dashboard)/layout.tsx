@@ -12,13 +12,17 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="app-shell flex min-h-screen overflow-hidden bg-transparent">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto px-4 py-5 lg:px-6 lg:py-6">
+          <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

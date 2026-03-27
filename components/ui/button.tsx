@@ -16,14 +16,14 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variantStyles = {
       default:
-        "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:ring-primary",
+        "bg-primary text-primary-foreground shadow-[0_12px_24px_-16px_hsl(var(--primary)/0.75)] hover:bg-primary/92 focus-visible:ring-primary",
       destructive:
         "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 focus-visible:ring-destructive",
       outline:
-        "border border-border bg-card text-foreground hover:bg-muted/70 focus-visible:ring-ring",
+        "border border-border/80 bg-white/80 text-foreground shadow-sm hover:bg-white focus-visible:ring-ring",
       secondary:
-        "bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:ring-ring",
-      ghost: "text-foreground hover:bg-muted/80 hover:text-foreground",
+        "bg-secondary text-secondary-foreground hover:bg-secondary/90 focus-visible:ring-ring",
+      ghost: "text-foreground hover:bg-muted/70 hover:text-foreground",
       link: "text-primary underline-offset-4 hover:underline",
     }
 
@@ -37,7 +37,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <Comp
         className={cn(
-          "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-xs sm:text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+          "inline-flex items-center justify-center whitespace-nowrap rounded-xl text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
           variantStyles[variant],
           sizeStyles[size],
           className

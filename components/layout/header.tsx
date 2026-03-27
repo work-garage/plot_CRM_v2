@@ -114,19 +114,25 @@ export function Header({ onMenuClick = () => {} }: HeaderProps) {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur-md px-4 lg:px-6">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="lg:hidden"
-        onClick={onMenuClick}
-      >
-        <Menu className="h-5 w-5" />
-      </Button>
+    <header className="sticky top-0 z-30 px-4 pt-4 lg:px-6">
+      <div className="surface-panel flex h-16 items-center justify-between px-4 lg:px-5">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden"
+          onClick={onMenuClick}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
 
-      <div className="hidden lg:block" />
+        <div className="hidden lg:flex flex-col">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+            Workspace
+          </span>
+          <span className="text-sm font-medium text-foreground">EstateFlow CRM</span>
+        </div>
 
-      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
         {userInfo && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -134,7 +140,7 @@ export function Header({ onMenuClick = () => {} }: HeaderProps) {
                 variant="ghost"
                 size="sm"
                 type="button"
-                className="h-9 border shadow-sm bg-background hover:bg-zinc-50 dark:hover:bg-zinc-900"
+                className="h-10 rounded-xl border border-border/80 bg-white/80 px-3 shadow-sm hover:bg-white"
               >
                 <User className="h-[18px] w-[18px] text-zinc-500 mr-2" />
                 <span className="max-w-[140px] truncate text-zinc-800 dark:text-zinc-100">
@@ -154,11 +160,12 @@ export function Header({ onMenuClick = () => {} }: HeaderProps) {
           size="sm"
           onClick={handleLogout}
           disabled={loggingOut}
-          className="text-zinc-500 hover:text-red-600"
+          className="h-10 rounded-xl border border-transparent px-3 text-zinc-500 hover:border-red-100 hover:bg-red-50 hover:text-red-600"
         >
           {loggingOut ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <LogOut className="h-4 w-4 mr-2" />}
           {loggingOut ? "Logging out..." : "Logout"}
         </Button>
+      </div>
       </div>
 
       <SelfProfileModal

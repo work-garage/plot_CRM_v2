@@ -40,18 +40,19 @@ export function Sidebar({ open, onClose, items }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "flex fixed top-0 left-0 z-40 flex-col w-64 h-full text-white transition-transform duration-200 ease-in-out bg-zinc-950 border-r border-zinc-900 lg:translate-x-0 lg:static lg:z-auto",
+          "fixed left-0 top-0 z-40 flex h-full w-72 flex-col border-r border-white/10 bg-[linear-gradient(180deg,rgba(10,15,29,0.98),rgba(18,26,45,0.98))] text-white shadow-[20px_0_50px_-32px_rgba(15,23,42,0.95)] transition-transform duration-200 ease-in-out lg:static lg:z-auto lg:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
         {/* Logo */}
-        <div className="flex justify-between items-center px-6 py-5 border-b border-zinc-900/50">
+        <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
           <Link href="/dashboard" className="flex gap-3 items-center">
-            <div className="flex justify-center items-center w-11 h-11 bg-primary shadow-sm shadow-primary/30 rounded-xl">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/10 shadow-inner shadow-white/10">
               <Building2 className="w-7 h-7 text-primary-foreground" />
             </div>
             <div>
-              <p className="text-base font-bold tracking-tight leading-none text-zinc-50">EstateFlow CRM</p>
+              <p className="text-base font-semibold tracking-tight leading-none text-zinc-50">EstateFlow CRM</p>
+              <p className="mt-1 text-[11px] uppercase tracking-[0.24em] text-zinc-500">Operations Suite</p>
             </div>
           </Link>
           <button
@@ -63,7 +64,7 @@ export function Sidebar({ open, onClose, items }: SidebarProps) {
         </div>
 
         {/* Nav Links */}
-        <nav className="overflow-y-auto flex-1 px-3 py-4 space-y-1">
+        <nav className="flex-1 space-y-1.5 overflow-y-auto px-4 py-5">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href ||
@@ -75,10 +76,10 @@ export function Sidebar({ open, onClose, items }: SidebarProps) {
                 href={item.href}
                 onClick={onClose}
                 className={cn(
-                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                  "flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-medium transition-all duration-200",
                   isActive
-                    ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
-                    : "text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800/50"
+                    ? "bg-white text-zinc-950 shadow-[0_12px_24px_-18px_rgba(255,255,255,0.8)]"
+                    : "text-zinc-400 hover:bg-white/6 hover:text-zinc-50"
                 )}
               >
                 <item.icon className="w-5 h-5 shrink-0" />
@@ -90,7 +91,7 @@ export function Sidebar({ open, onClose, items }: SidebarProps) {
           {isAdmin && (
             <button
               onClick={() => setShowAddModal(true)}
-              className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-primary hover:bg-primary/5 transition-all mt-4 border border-dashed border-primary/30"
+              className="mt-5 flex w-full items-center gap-3 rounded-2xl border border-dashed border-white/20 px-3.5 py-3 text-sm font-medium text-zinc-200 transition-all hover:border-primary/40 hover:bg-white/6 hover:text-white"
             >
               <PlusCircle className="w-5 h-5 shrink-0" />
               Add Sections
@@ -99,7 +100,7 @@ export function Sidebar({ open, onClose, items }: SidebarProps) {
         </nav>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-zinc-900 bg-zinc-950/50">
+        <div className="border-t border-white/10 bg-white/[0.03] px-6 py-4">
           <p className="text-[10px] uppercase font-bold text-zinc-600 tracking-widest mb-1">Source</p>
           <p className="text-[11px] text-zinc-400 font-medium">
             © {new Date().getFullYear()} EstateFlow CRM

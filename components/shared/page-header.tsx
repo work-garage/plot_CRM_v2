@@ -21,21 +21,24 @@ export function PageHeader({
   const router = useRouter();
 
   return (
-    <div className="mb-6 flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+    <div className="surface-panel mb-1 flex w-full min-w-0 flex-col gap-4 px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+      <div className="flex min-w-0 flex-1 items-start gap-3">
         {showBackButton && (
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 -ml-2 shrink-0 text-zinc-500"
+            className="h-10 w-10 shrink-0 rounded-xl border border-border/70 bg-white/80 text-zinc-500 shadow-sm hover:bg-white"
             onClick={() => router.back()}
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
         )}
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight break-words">{title}</h1>
-          {subtitle && <p className="mt-0.5 text-sm text-zinc-500">{subtitle}</p>}
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+            Overview
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight break-words text-zinc-950">{title}</h1>
+          {subtitle && <p className="mt-1 max-w-3xl text-sm leading-6 text-zinc-500">{subtitle}</p>}
         </div>
       </div>
       {action && <div className="w-full shrink-0 sm:mt-0 sm:w-auto">{action}</div>}

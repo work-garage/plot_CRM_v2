@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -32,7 +31,6 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-	const router = useRouter();
 	const [loading, setLoading] = useState(false);
 	const [showPassword, setShowPassword] = useState(false);
 
@@ -61,7 +59,7 @@ export default function LoginPage() {
 	return (
 		<div
 			suppressHydrationWarning
-			className="relative min-h-screen overflow-hidden"
+			className="relative min-h-screen overflow-hidden bg-slate-950"
 		>
 			{/* Background image (login screen only) */}
 			<div
@@ -70,26 +68,30 @@ export default function LoginPage() {
 				className="absolute inset-0 bg-cover bg-center"
 				style={{ backgroundImage: "url('/bg.jpg')" }}
 			/>
-			<div className="relative z-10 min-h-screen flex justify-center sm:justify-center lg:justify-start px-4 sm:px-12 lg:px-20">
-				<div className="w-full sm:max-w-md sm:pt-0 sm:-translate-y-6 pt-20 sm:flex sm:items-center">
+			<div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(2,6,23,0.75),rgba(15,23,42,0.45),rgba(255,255,255,0.08))]" />
+			<div className="relative z-10 flex min-h-screen justify-center px-4 sm:px-12 lg:justify-start lg:px-20">
+				<div className="flex w-full items-center py-12 sm:max-w-md lg:py-0">
 					<Card
 						suppressHydrationWarning
-						className="w-full max-w-md bg-zinc-100/90 border border-zinc-200/70 shadow-xl"
+						className="w-full max-w-md border border-white/50 bg-white/84 shadow-[0_28px_60px_-32px_rgba(15,23,42,0.65)] backdrop-blur-xl"
 					>
-				<CardHeader className="text-center space-y-4">
-					<div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-zinc-900 dark:bg-zinc-100">
-						<Building2 className="h-10 w-10 text-white dark:text-zinc-900" />
+				<CardHeader className="space-y-4 text-center">
+					<div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.75rem] bg-[linear-gradient(135deg,hsl(var(--primary)),#0f172a)] shadow-[0_20px_40px_-24px_rgba(37,99,235,0.85)]">
+						<Building2 className="h-10 w-10 text-white" />
 					</div>
 					<div>
-						<CardTitle className="text-2xl font-bold">EstateFlow CRM</CardTitle>
-						<CardDescription className="text-sm mt-1">
-							EstateFlow CRM login
+						<p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-zinc-500">
+							Secure Access
+						</p>
+						<CardTitle className="text-2xl font-semibold">EstateFlow CRM</CardTitle>
+						<CardDescription className="mt-2 text-sm leading-6">
+							Sign in to manage customers, plots, payments, and advisor operations.
 						</CardDescription>
 					</div>
 				</CardHeader>
 				<CardContent>
 					<Form {...form}>
-						<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+						<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
 							<FormField
 								control={form.control}
 								name="identifier"
@@ -127,7 +129,7 @@ export default function LoginPage() {
 													type="button"
 													variant="ghost"
 													size="sm"
-													className="absolute right-1 top-1/2 -translate-y-1/2 h-10 w-10 p-0"
+													className="absolute right-1 top-1/2 h-10 w-10 -translate-y-1/2 p-0"
 													onClick={() => setShowPassword((v) => !v)}
 													aria-label={showPassword ? "Hide password" : "Show password"}
 												>
@@ -139,7 +141,7 @@ export default function LoginPage() {
 												</Button>
 											</div>
 										</FormControl>
-										<p className="text-[10px] text-zinc-500">
+										<p className="rounded-xl border border-border/70 bg-muted/35 px-3 py-2 text-[11px] leading-5 text-zinc-500">
 											For advisors: if password is blank, default is your phone (last 10 digits).
 										</p>
 										<FormMessage />

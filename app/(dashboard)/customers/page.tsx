@@ -24,12 +24,12 @@ export default async function CustomersPage() {
       />
 
       {customers.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-zinc-300 p-16 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100 mb-4">
+        <div className="surface-panel flex flex-col items-center justify-center border-dashed p-16 text-center">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-[1.25rem] bg-slate-100">
             <Users className="h-8 w-8 text-zinc-400" />
           </div>
           <h3 className="text-lg font-semibold">No customers yet</h3>
-          <p className="text-sm text-zinc-500 mt-1 mb-4">
+          <p className="mb-4 mt-1 max-w-md text-sm leading-6 text-zinc-500">
             Start by adding your first plot buyer
           </p>
           <Link href="/customers/new">

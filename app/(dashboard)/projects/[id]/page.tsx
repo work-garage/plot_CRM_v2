@@ -98,7 +98,7 @@ export default async function ProjectDetailPage({
 	}
 
 	return (
-		<div>
+		<div className="space-y-6">
 			<PageHeader
 				title={project.name}
 				subtitle={project.location ?? "No location set"}
@@ -119,7 +119,7 @@ export default async function ProjectDetailPage({
 								</Button>
 							</DialogTrigger>
 							<DialogContent className="max-w-2xl">
-								<div className="flex items-center justify-between gap-3 border-b border-zinc-100 p-4">
+								<div className="flex items-center justify-between gap-3 border-b border-border/70 p-4">
 									<div className="text-sm font-medium text-zinc-700">Add Single Plot</div>
 									<DialogClose asChild>
 										<Button variant="outline" size="sm" className="h-8">
@@ -136,7 +136,7 @@ export default async function ProjectDetailPage({
 			/>
 
 			{/* Stats Grid */}
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
 				<StatCard
 					title="Total Plots"
 					value={plotCounts.total}
@@ -173,7 +173,7 @@ export default async function ProjectDetailPage({
 				)}
 			</div>
 
-			<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+			<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
 				<StatCard
 					title="Enquired"
 					value={data.enquiryCount}
@@ -198,7 +198,7 @@ export default async function ProjectDetailPage({
 
 			{/* Plot Layout */}
 			{layoutPlots.length > 0 && (
-				<Card className="mb-6">
+				<Card>
 					<CardHeader className="pb-2">
 						<CardTitle className="text-sm font-medium text-zinc-500">
 							Interactive Plot Layout
@@ -216,7 +216,7 @@ export default async function ProjectDetailPage({
 			)}
 
 			{/* Advisor assignments */}
-			<Card className="mb-6">
+			<Card>
 				<CardHeader className="pb-2">
 					<CardTitle className="text-sm font-medium text-zinc-500">
 						Advisor Assignment & Commission Rate (Project-wise)
@@ -232,7 +232,7 @@ export default async function ProjectDetailPage({
 			</Card>
 
 			{/* Revenue + Info */}
-			<div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+			<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
 				{modules.sales && (
 					<Card>
 						<CardHeader className="pb-2">
@@ -268,7 +268,7 @@ export default async function ProjectDetailPage({
 
 			{/* Description */}
 			{project.description && (
-				<Card className="mb-6">
+				<Card>
 					<CardHeader className="pb-2">
 						<CardTitle className="text-sm font-medium text-zinc-500">
 							Description
@@ -294,33 +294,33 @@ export default async function ProjectDetailPage({
 								No sales yet for this project
 							</p>
 						) : (
-							<div className="overflow-x-auto">
+							<div className="section-panel overflow-x-auto">
 								<table className="w-full text-sm">
 									<thead>
-										<tr className="border-b text-left text-zinc-500">
-											<th className="pb-2 pr-4 font-medium">Plot</th>
-											<th className="pb-2 pr-4 font-medium">Customer</th>
-											<th className="pb-2 pr-4 font-medium">Advisor</th>
-											<th className="pb-2 pr-4 font-medium">Amount</th>
-											<th className="pb-2 pr-4 font-medium">Phase</th>
-											<th className="pb-2 font-medium">Date</th>
+										<tr className="border-b border-border/70 bg-slate-50/80 text-left text-zinc-500">
+											<th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em]">Plot</th>
+											<th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em]">Customer</th>
+											<th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em]">Advisor</th>
+											<th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em]">Amount</th>
+											<th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em]">Phase</th>
+											<th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em]">Date</th>
 										</tr>
 									</thead>
 									<tbody>
 										{recentSales.map((sale) => (
-											<tr key={sale.id} className="border-b last:border-0">
-												<td className="py-2.5 pr-4 font-medium">
+											<tr key={sale.id} className="border-b border-border/70 last:border-0">
+												<td className="px-4 py-3 font-medium">
 													{sale.plot_number}
 												</td>
-												<td className="py-2.5 pr-4">{sale.customer_name}</td>
-												<td className="py-2.5 pr-4">{sale.advisor_name}</td>
-												<td className="py-2.5 pr-4">
+												<td className="px-4 py-3">{sale.customer_name}</td>
+												<td className="px-4 py-3">{sale.advisor_name}</td>
+												<td className="px-4 py-3">
 													{formatCurrency(sale.total_sale_amount)}
 												</td>
-												<td className="py-2.5 pr-4">
+												<td className="px-4 py-3">
 													<Badge variant="secondary">{sale.sale_phase}</Badge>
 												</td>
-												<td className="py-2.5">
+												<td className="px-4 py-3">
 													{sale.token_date ? formatDate(sale.token_date) : "—"}
 												</td>
 											</tr>

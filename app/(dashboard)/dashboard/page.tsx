@@ -45,45 +45,45 @@ export default async function DashboardPage({
 				<ReportsFilters basePath="/dashboard" />
 			</Suspense>
 
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-				<Card className="bg-zinc-100 border-zinc-200">
+			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+				<Card className="bg-slate-50/80">
 					<CardHeader className="pb-2">
-						<CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-500">Total Enquiries</CardTitle>
+						<CardTitle className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Total Enquiries</CardTitle>
 					</CardHeader>
-					<CardContent><p className="text-2xl font-bold">{(stats as any).baseLeadStats.total}</p></CardContent>
+					<CardContent><p className="text-2xl font-semibold">{(stats as any).baseLeadStats.total}</p></CardContent>
 				</Card>
 				<Card>
 					<CardHeader className="pb-2">
-						<CardTitle className="text-xs font-bold uppercase tracking-wider text-blue-600">Active Leads</CardTitle>
+						<CardTitle className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Active Leads</CardTitle>
 					</CardHeader>
-					<CardContent><p className="text-2xl font-bold">{(stats as any).baseLeadStats.active}</p></CardContent>
+					<CardContent><p className="text-2xl font-semibold">{(stats as any).baseLeadStats.active}</p></CardContent>
 				</Card>
 				<Card>
 					<CardHeader className="pb-2">
-						<CardTitle className="text-xs font-bold uppercase tracking-wider text-green-600">Closed Won</CardTitle>
+						<CardTitle className="text-xs font-semibold uppercase tracking-[0.18em] text-green-600">Closed Won</CardTitle>
 					</CardHeader>
-					<CardContent><p className="text-2xl font-bold">{(stats as any).baseLeadStats.won}</p></CardContent>
+					<CardContent><p className="text-2xl font-semibold">{(stats as any).baseLeadStats.won}</p></CardContent>
 				</Card>
 				<Card>
 					<CardHeader className="pb-2">
-						<CardTitle className="text-xs font-bold uppercase tracking-wider text-red-600">Closed Lost</CardTitle>
+						<CardTitle className="text-xs font-semibold uppercase tracking-[0.18em] text-red-600">Closed Lost</CardTitle>
 					</CardHeader>
-					<CardContent><p className="text-2xl font-bold">{(stats as any).baseLeadStats.lost}</p></CardContent>
+					<CardContent><p className="text-2xl font-semibold">{(stats as any).baseLeadStats.lost}</p></CardContent>
 				</Card>
 			</div>
 
 			{/* 2. Financial Summary Row (Optional) */}
 			{(modules.sales || modules.payments || modules.expenses) && (
-				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
 					{modules.sales && (
-						<Card className="bg-zinc-900 text-white border-zinc-800">
+						<Card className="border-slate-800 bg-[linear-gradient(135deg,#0f172a,#1e293b)] text-white">
 							<CardHeader className="pb-2">
 								<CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1">
 									<IndianRupee className="h-4 w-4" /> Total Sales Value
 								</CardTitle>
 							</CardHeader>
 							<CardContent>
-								<p className="text-2xl font-bold">{formatCurrency(stats.summary.totalSalesValue)}</p>
+								<p className="text-2xl font-semibold">{formatCurrency(stats.summary.totalSalesValue)}</p>
 								<p className="text-[11px] text-zinc-400 mt-0.5">{stats.summary.salesCount} sales</p>
 							</CardContent>
 						</Card>
@@ -150,17 +150,17 @@ export default async function DashboardPage({
 					</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-						<div className="rounded-lg border border-zinc-200 p-4">
+					<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+						<div className="subsection-panel p-4">
 							<div className="text-[10px] font-semibold uppercase text-zinc-500">Converted enquiries</div>
 							<div className="text-xl font-bold text-zinc-900">{stats.summary.enquiryConvertedCustomers}</div>
 						</div>
-						<div className="rounded-lg border border-zinc-200 p-4">
+						<div className="subsection-panel p-4">
 							<div className="text-[10px] font-semibold uppercase text-zinc-500">Converted customers who bought plots</div>
 							<div className="text-xl font-bold text-green-700">{stats.summary.enquiryConvertedCustomersBoughtPlots}</div>
 						</div>
 						{modules.sales && (
-							<div className="rounded-lg border border-zinc-200 p-4">
+							<div className="subsection-panel p-4">
 								<div className="text-[10px] font-semibold uppercase text-zinc-500">Revenue from converted customers</div>
 								<div className="text-xl font-bold text-blue-700">{formatCurrency(stats.summary.enquiryConvertedRevenue)}</div>
 							</div>
@@ -191,16 +191,16 @@ export default async function DashboardPage({
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-							<div className="rounded-lg border border-zinc-200 p-4">
+						<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+							<div className="subsection-panel p-4">
 								<div className="text-[10px] font-semibold uppercase text-zinc-500">Collected</div>
 								<div className="text-xl font-bold text-green-600">{formatCurrency(stats.collectionsVsOutstanding.collected)}</div>
 							</div>
-							<div className="rounded-lg border border-zinc-200 p-4">
+							<div className="subsection-panel p-4">
 								<div className="text-[10px] font-semibold uppercase text-zinc-500">Outstanding</div>
 								<div className="text-xl font-bold text-red-600">{formatCurrency(stats.collectionsVsOutstanding.outstanding)}</div>
 							</div>
-							<div className="rounded-lg border border-zinc-200 p-4">
+							<div className="subsection-panel p-4">
 								<div className="text-[10px] font-semibold uppercase text-zinc-500">Total Sales</div>
 								<div className="text-xl font-bold">{formatCurrency(stats.collectionsVsOutstanding.total)}</div>
 							</div>
@@ -257,7 +257,7 @@ export default async function DashboardPage({
 						<CardContent>
 							<div className="space-y-4 max-h-64 overflow-y-auto">
 								{stats.advisorPerformance.map((advisor) => (
-									<div key={advisor.name} className="flex items-center justify-between p-3 rounded-lg bg-zinc-50 border border-zinc-100">
+									<div key={advisor.name} className="subsection-panel flex items-center justify-between p-3">
 										<div className="min-w-0">
 											<p className="text-sm font-bold truncate">{advisor.name}</p>
 											<p className="text-[10px] text-zinc-500 uppercase font-bold tracking-tighter">Paid: {formatCurrency(advisor.paidCommission)}</p>

@@ -197,6 +197,7 @@ export function ProjectForm({ mode, initialData }: ProjectFormProps) {
 			<CardContent>
 				<Form {...form}>
 					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+						<div className="field-group space-y-5">
 						<FormField
 							control={form.control}
 							name="name"
@@ -229,7 +230,7 @@ export function ProjectForm({ mode, initialData }: ProjectFormProps) {
 							)}
 						/>
 
-						<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<FormField
 								control={form.control}
 								name="total_plots_count"
@@ -287,7 +288,7 @@ export function ProjectForm({ mode, initialData }: ProjectFormProps) {
 							/>
 						</div>
 
-						<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<FormField
 								control={form.control}
 								name="builder_name"
@@ -345,8 +346,9 @@ export function ProjectForm({ mode, initialData }: ProjectFormProps) {
 									</FormControl>
 									<FormMessage />
 								</FormItem>
-							)}
-						/>
+								)}
+							/>
+						</div>
 
 						<div className="flex gap-3 pt-4">
 							<Button

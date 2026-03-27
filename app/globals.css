@@ -4,26 +4,26 @@
 
 @layer base {
 	:root {
-		--background: 0 0% 100%;
-		--foreground: 240 10% 3.9%;
+		--background: 210 33% 98%;
+		--foreground: 222 28% 15%;
 		--card: 0 0% 100%;
-		--card-foreground: 240 10% 3.9%;
+		--card-foreground: 222 28% 15%;
 		--popover: 0 0% 100%;
-		--popover-foreground: 240 10% 3.9%;
-		--primary: 221 83% 53%; /* Sharp Indigo */
+		--popover-foreground: 222 28% 15%;
+		--primary: 217 78% 45%;
 		--primary-foreground: 210 40% 98%;
-		--secondary: 210 40% 96.1%;
-		--secondary-foreground: 222.2 47.4% 11.2%;
-		--muted: 210 40% 96.1%;
-		--muted-foreground: 215.4 16.3% 46.9%;
-		--accent: 210 40% 96.1%;
-		--accent-foreground: 222.2 47.4% 11.2%;
+		--secondary: 210 28% 95%;
+		--secondary-foreground: 222 28% 15%;
+		--muted: 210 24% 95%;
+		--muted-foreground: 217 16% 43%;
+		--accent: 214 30% 94%;
+		--accent-foreground: 222 28% 15%;
 		--destructive: 0 84.2% 60.2%;
 		--destructive-foreground: 210 40% 98%;
-		--border: 214.3 31.8% 91.4%;
-		--input: 214.3 31.8% 91.4%;
-		--ring: 221 83% 53%;
-		--radius: 0.75rem; /* Rounded-xl for completely distinct modern card/button feel */
+		--border: 214 25% 88%;
+		--input: 214 26% 89%;
+		--ring: 217 78% 45%;
+		--radius: 1rem;
 	}
 
 	.dark {
@@ -53,7 +53,58 @@
 	* {
 		@apply border-border;
 	}
+	html {
+		scroll-behavior: smooth;
+	}
 	body {
 		@apply text-foreground font-sans antialiased bg-background;
+		background-image:
+			radial-gradient(circle at top, rgba(59, 130, 246, 0.08), transparent 30%),
+			linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 248, 251, 0.98));
+		min-height: 100vh;
+	}
+	::selection {
+		background: hsl(var(--primary) / 0.16);
+		color: hsl(var(--foreground));
+	}
+}
+
+@layer components {
+	.app-shell {
+		@apply relative min-h-screen;
+	}
+
+	.app-shell::before {
+		content: "";
+		position: fixed;
+		inset: 0;
+		pointer-events: none;
+		background:
+			linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 28%),
+			radial-gradient(circle at right top, rgba(15, 23, 42, 0.03), transparent 24%);
+	}
+
+	.surface-panel {
+		@apply rounded-[1.25rem] border shadow-[0_18px_45px_-28px_rgba(15,23,42,0.35)] backdrop-blur-sm;
+		border-color: rgba(255, 255, 255, 0.7);
+		background-color: rgba(255, 255, 255, 0.75);
+	}
+
+	.section-panel {
+		@apply rounded-2xl border shadow-[0_14px_32px_-24px_rgba(15,23,42,0.3)] backdrop-blur-sm;
+		border-color: hsl(var(--border) / 0.8);
+		background-color: rgba(255, 255, 255, 0.72);
+	}
+
+	.subsection-panel {
+		@apply rounded-xl border;
+		border-color: hsl(var(--border) / 0.7);
+		background-color: rgba(248, 250, 252, 0.9);
+	}
+
+	.field-group {
+		@apply rounded-xl border p-4 sm:p-5;
+		border-color: hsl(var(--border) / 0.7);
+		background-color: hsl(var(--muted) / 0.35);
 	}
 }

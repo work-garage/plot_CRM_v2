@@ -80,9 +80,9 @@ export function DataTable<TData, TValue>({
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-2">
+      <div className="surface-panel flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
         {effectiveSearchKeys.length > 0 && (
-          <div className="relative max-w-sm">
+          <div className="relative w-full max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
             <Input
               placeholder={searchPlaceholder}
@@ -99,7 +99,7 @@ export function DataTable<TData, TValue>({
             />
           </div>
         )}
-        {toolbar ? <div className="flex items-center gap-2">{toolbar}</div> : null}
+        {toolbar ? <div className="flex flex-wrap items-center gap-2">{toolbar}</div> : null}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="ml-auto">
@@ -126,7 +126,7 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* Table */}
-      <div className="rounded-md border">
+      <div className="section-panel overflow-hidden">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -162,7 +162,7 @@ export function DataTable<TData, TValue>({
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
-                  className="h-24 text-center text-zinc-500"
+                  className="h-32 text-center text-zinc-500"
                 >
                   {emptyState ?? "No results found."}
                 </TableCell>
@@ -173,13 +173,13 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between">
+      <div className="surface-panel flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-zinc-500">
           {table.getFilteredRowModel().rows.length} row(s) total
         </p>
         <div className="flex items-center gap-2">
           <select
-            className="h-9 rounded-md border border-zinc-200 bg-white px-2 text-sm text-zinc-700"
+            className="h-10 rounded-xl border border-border bg-white/90 px-3 text-sm text-zinc-700 shadow-sm outline-none focus:border-ring"
             value={table.getState().pagination.pageSize}
             onChange={(e) => table.setPageSize(Number(e.target.value))}
           >
