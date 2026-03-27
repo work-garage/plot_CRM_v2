@@ -46,6 +46,10 @@ export function EnquiryBookingDialog({
   const [selectedPlotIds, setSelectedPlotIds] = useState<string[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [loadingPlots, setLoadingPlots] = useState(false);
+  const plotNumberCollator = useMemo(
+    () => new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }),
+    [],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -84,7 +88,10 @@ export function EnquiryBookingDialog({
     Promise.all([getPlotsByProject(projectId), getAdvisorAssignmentsByProject(projectId)])
       .then(([plotRows, assignments]) => {
         if (cancelled) return;
-        setPlots((plotRows as any[]).filter((plot) => plot.status === "available"));
+        const ordered = [...(plotRows as any[])].sort((a, b) =>
+          plotNumberCollator.compare(String(a.plot_number ?? ""), String(b.plot_number ?? "")),
+        );
+        setPlots(ordered);
         setAdvisorAssignments(assignments as any[]);
         setSelectedPlotIds([]);
       })
@@ -100,7 +107,7 @@ export function EnquiryBookingDialog({
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [plotNumberCollator, projectId]);
 
   useEffect(() => {
     if (!open) {
@@ -112,11 +119,29 @@ export function EnquiryBookingDialog({
   }, [open]);
 
   const selectedPlots = useMemo(
-    () => plots.filter((plot) => selectedPlotIds.includes(plot.id)),
-    [plots, selectedPlotIds],
+    () =>
+      [...plots.filter((plot) => selectedPlotIds.includes(plot.id))].sort((a, b) =>
+        plotNumberCollator.compare(String(a.plot_number ?? ""), String(b.plot_number ?? "")),
+      ),
+    [plotNumberCollator, plots, selectedPlotIds],
   );
 
+  const plotCounts = useMemo(() => {
+    return plots.reduce(
+      (acc, plot) => {
+        const status = String(plot.status ?? "available");
+        if (status === "available") acc.available += 1;
+        else if (status === "sold") acc.sold += 1;
+        else acc.blocked += 1;
+        return acc;
+      },
+      { available: 0, sold: 0, blocked: 0 },
+    );
+  }, [plots]);
+
   function togglePlotSelection(plotId: string) {
+    const plot = plots.find((item) => item.id === plotId);
+    if (!plot || plot.status !== "available") return;
     setSelectedPlotIds((current) =>
       current.includes(plotId)
         ? current.filter((id) => id !== plotId)
@@ -131,18 +156,21 @@ export function EnquiryBookingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[92vh] overflow-y-auto border-zinc-200 bg-[linear-gradient(180deg,#fdfdfb_0%,#f7f4ee_100%)] p-0 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.35)]">
         <DialogHeader>
-          <DialogTitle>Close Won by Booking / Sale</DialogTitle>
-          <DialogDescription>
+          <div className="border-b border-black/5 bg-white/80 px-6 py-5 backdrop-blur">
+          <DialogTitle className="text-2xl font-semibold tracking-tight text-zinc-950">Close Won by Booking / Sale</DialogTitle>
+          <DialogDescription className="mt-1 text-sm text-zinc-600">
             Choose a project and one or more plots for {enquiry?.name ?? "this enquiry"}, then record the bookings.
           </DialogDescription>
+          </div>
         </DialogHeader>
 
         {selectedPlots.length === 0 ? (
-          <div className="space-y-4">
-            <div className="space-y-2">
-                <p className="text-sm font-medium text-zinc-700">Project</p>
+          <div className="space-y-5 px-6 pb-6">
+            <div className="rounded-2xl border border-zinc-200 bg-white/90 p-5 shadow-sm">
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500">Project</p>
                 <Select value={projectId} onValueChange={setProjectId} disabled={loadingProjects}>
                   <SelectTrigger>
                     <SelectValue placeholder={loadingProjects ? "Loading projects..." : "Select project"} />
@@ -155,39 +183,83 @@ export function EnquiryBookingDialog({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
             </div>
 
             {projectId && !loadingPlots && plots.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-zinc-300 p-6 text-sm text-zinc-500">
+              <div className="rounded-2xl border border-dashed border-zinc-300 bg-white/70 p-6 text-sm text-zinc-500">
                 No available plots remain in this project.
               </div>
             ) : null}
 
             {projectId && plots.length > 0 ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
+              <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white/92 p-5 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-medium text-zinc-700">Available plots matrix</p>
-                    <p className="text-xs text-zinc-500">Click any plot to select it for this enquiry. You can choose multiple plots.</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500">Plot Matrix</p>
+                    <p className="mt-1 text-sm text-zinc-700">
+                      Plots are shown in natural plot-number order. Available plots stay green, sold plots stay red.
+                    </p>
                   </div>
-                  <Badge variant="outline">{selectedPlotIds.length} selected</Badge>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                      {plotCounts.available} available
+                    </Badge>
+                    <Badge variant="outline" className="border-rose-200 bg-rose-50 text-rose-700">
+                      {plotCounts.sold} sold
+                    </Badge>
+                    {plotCounts.blocked > 0 ? (
+                      <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
+                        {plotCounts.blocked} booked
+                      </Badge>
+                    ) : null}
+                    <Badge variant="outline" className="border-zinc-300 bg-zinc-50 text-zinc-700">
+                      {selectedPlotIds.length} selected
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-3 text-[11px] font-medium text-zinc-600">
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-emerald-500" />
+                    Available
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-rose-500" />
+                    Sold
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-amber-500" />
+                    Token / Agreement
+                  </span>
                 </div>
 
                 <div
-                  className="grid gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-4"
+                  className="grid gap-2 rounded-2xl border border-zinc-200 bg-[radial-gradient(circle_at_top,#fafaf7_0%,#f4f0e6_100%)] p-4"
                   style={{ gridTemplateColumns: "repeat(auto-fill, minmax(64px, 1fr))" }}
                 >
                   {plots.map((plot) => {
                     const selected = selectedPlotIds.includes(plot.id);
+                    const status = String(plot.status ?? "available");
+                    const selectable = status === "available";
+                    const statusTone =
+                      status === "sold"
+                        ? "border-rose-300 bg-rose-100 text-rose-900"
+                        : status === "available"
+                          ? "border-emerald-300 bg-emerald-100 text-emerald-900 hover:bg-emerald-200"
+                          : "border-amber-300 bg-amber-100 text-amber-900";
+                    const statusLabel =
+                      status === "sold" ? "Sold" : status === "available" ? "Available" : "Booked";
                     return (
                       <button
                         key={plot.id}
                         type="button"
                         onClick={() => togglePlotSelection(plot.id)}
+                        disabled={!selectable}
                         className={`relative aspect-square rounded-md border text-xs font-semibold transition-all ${
                           selected
                             ? "border-zinc-900 bg-zinc-900 text-white ring-2 ring-zinc-400"
-                            : "border-emerald-300 bg-emerald-100 text-emerald-900 hover:bg-emerald-200"
+                            : statusTone
                         }`}
                       >
                         <span className="absolute left-0 right-0 top-1 text-[10px] font-medium">
@@ -195,7 +267,7 @@ export function EnquiryBookingDialog({
                         </span>
                         <span className="text-sm font-bold">{plot.plot_number}</span>
                         <span className="absolute bottom-1 left-0 right-0 text-[10px] font-medium">
-                          Available
+                          {statusLabel}
                         </span>
                       </button>
                     );
@@ -211,8 +283,8 @@ export function EnquiryBookingDialog({
             </div>
           </div>
         ) : (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
+          <div className="space-y-6 px-6 pb-6">
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white/92 px-4 py-3 shadow-sm">
               <div>
                 <p className="text-sm font-semibold text-zinc-900">
                   {selectedPlots.length} plot{selectedPlots.length > 1 ? "s" : ""} selected for {enquiry?.name ?? "this enquiry"}

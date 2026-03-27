@@ -47,6 +47,42 @@ export type EnquiryRow = {
   site_visit_date: string | null;
 };
 
+function deriveLeadStatusFromFollowUps(
+  currentStatus: string | null | undefined,
+  rows: Array<{
+    whatsapp_done?: boolean | null;
+    call_done?: boolean | null;
+    site_visit_done?: boolean | null;
+    customer_mood?: string | null;
+  }>,
+): string {
+  const status = currentStatus || LEAD_STATUS.newLead;
+  if (status === LEAD_STATUS.closedWon || status === LEAD_STATUS.closedLost) {
+    return status;
+  }
+
+  const cumulative = rows.reduce<{
+    whatsapp_done: boolean;
+    call_done: boolean;
+    site_visit_done: boolean;
+    notInterested: boolean;
+  }>(
+    (acc, row) => ({
+      whatsapp_done: acc.whatsapp_done || Boolean(row.whatsapp_done),
+      call_done: acc.call_done || Boolean(row.call_done),
+      site_visit_done: acc.site_visit_done || Boolean(row.site_visit_done),
+      notInterested: acc.notInterested || row.customer_mood === "Not Interested",
+    }),
+    { whatsapp_done: false, call_done: false, site_visit_done: false, notInterested: false },
+  );
+
+  if (cumulative.notInterested) return LEAD_STATUS.closedLost;
+  if (cumulative.site_visit_done) return LEAD_STATUS.siteVisitDone;
+  if (cumulative.whatsapp_done && cumulative.call_done) return LEAD_STATUS.contactDone;
+  if (cumulative.whatsapp_done || cumulative.call_done) return LEAD_STATUS.contactPending;
+  return status;
+}
+
 function getLeadStatusPayload(status: string) {
   if (status === LEAD_STATUS.closedWon) {
     return {
@@ -108,8 +144,11 @@ export async function getEnquiryCustomers(): Promise<EnquiryRow[]> {
     const sortedFollowUps = [...(customer.customer_follow_ups ?? [])].sort(
       (a, b) => new Date(b.follow_up_date || 0).getTime() - new Date(a.follow_up_date || 0).getTime(),
     );
-    const latest = sortedFollowUps[0];
     const siteVisitPending = sortedFollowUps.find((row) => row.next_follow_up_date && !row.site_visit_done);
+    const derivedLeadStatus = deriveLeadStatusFromFollowUps(customer.lead_status, sortedFollowUps);
+    const cumulativeTaskComplete = sortedFollowUps.some((row) => row.site_visit_done)
+      && sortedFollowUps.some((row) => row.whatsapp_done)
+      && sortedFollowUps.some((row) => row.call_done);
 
     return {
       id: customer.id,
@@ -127,11 +166,11 @@ export async function getEnquiryCustomers(): Promise<EnquiryRow[]> {
       is_active: Boolean(customer.is_active),
       created_at: customer.created_at,
       follow_up_date: null,
-      enquiry_status: customer.lead_status || LEAD_STATUS.newLead,
+      enquiry_status: derivedLeadStatus,
       advisor_id: customer.advisor_id,
       advisor_name: customer.advisors?.name || null,
       source_advisor_id: customer.source_advisor_id,
-      lead_status: customer.lead_status || LEAD_STATUS.newLead,
+      lead_status: derivedLeadStatus,
       lead_source: customer.lead_source,
       property_type: customer.property_type,
       segment: customer.segment,
@@ -139,12 +178,12 @@ export async function getEnquiryCustomers(): Promise<EnquiryRow[]> {
       budget_max: customer.budget_max,
       bhk_size: customer.bhk_size,
       preferred_location: customer.preferred_location,
-      task_status:
-        latest && latest.whatsapp_done && latest.call_done && latest.site_visit_done
-          ? "Completed"
-          : "Pending",
+      task_status: cumulativeTaskComplete ? "Completed" : "Pending",
       updated_at: customer.updated_at,
-      site_visit_date: siteVisitPending?.next_follow_up_date ?? null,
+      site_visit_date:
+        derivedLeadStatus === LEAD_STATUS.siteVisitDone
+          ? null
+          : siteVisitPending?.next_follow_up_date ?? null,
     };
   }) as EnquiryRow[];
 }

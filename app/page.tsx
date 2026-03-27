@@ -20,22 +20,14 @@ export default async function RootPage() {
     redirect("/login");
   }
 
-  try {
-    const { data, error } = await supabase.auth.getUser();
-    if (error && !isExpectedLoggedOutAuthError(error)) {
-      console.error("Auth error in root page:", error);
-    }
-    const user = data.user;
+  const { data, error } = await supabase.auth.getUser();
+  if (error && !isExpectedLoggedOutAuthError(error)) {
+    console.error("Auth error in root page:", error);
+  }
 
-    if (!user) {
-      redirect("/login");
-    }
-
-    redirect("/dashboard");
-  } catch (error: any) {
-    if (!isExpectedLoggedOutAuthError(error)) {
-      console.error("Auth error in root page:", error);
-    }
+  if (!data.user) {
     redirect("/login");
   }
+
+  redirect("/dashboard");
 }

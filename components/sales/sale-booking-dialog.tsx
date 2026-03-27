@@ -93,8 +93,9 @@ export function SaleBookingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto border-zinc-200 bg-[linear-gradient(180deg,#fdfdfb_0%,#f7f4ee_100%)] p-0 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.35)]">
         <DialogHeader>
+          <div className="flex items-center justify-between gap-3 border-b border-black/5 bg-white/85 px-6 py-5 backdrop-blur">
           <DialogTitle className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="truncate">Sell / Book</div>
@@ -106,11 +107,12 @@ export function SaleBookingDialog({
               Close
             </Button>
           </DialogTitle>
+          </div>
         </DialogHeader>
 
         {loading ? (
-          <div className="space-y-4">
-            <div className="rounded-lg border border-zinc-200 p-4">
+          <div className="space-y-4 px-6 pb-6">
+            <div className="rounded-2xl border border-zinc-200 bg-white/90 p-4 shadow-sm">
               <Skeleton className="h-6 w-48 mb-3" />
               <Skeleton className="h-10 w-full mb-2" />
               <Skeleton className="h-10 w-full mb-2" />
@@ -119,7 +121,7 @@ export function SaleBookingDialog({
             </div>
           </div>
         ) : (
-          <div className="flex justify-center">
+          <div className="flex justify-center px-6 pb-6">
             <SaleForm
               plots={plotsForForm as any[]}
               customers={customers}
