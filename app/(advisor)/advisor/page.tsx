@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAdvisorAnalytics } from "@/app/actions/advisors";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { Card, CardContent, Button } from "@/components/ui";
-import { Users, Handshake, IndianRupee, Clock } from "lucide-react";
+import { Users, Handshake, IndianRupee, Clock, UserCheck, UserMinus, Activity, CreditCard } from "lucide-react";
 import { getModuleSettings } from "@/app/actions/settings";
 import { getScopeContext } from "@/lib/server/scope";
 
@@ -21,6 +21,9 @@ export default async function AdvisorDashboardPage() {
 		getModuleSettings()
 	]);
 	if (!data) redirect("/dashboard");
+	const activeEnquiries = Math.max(0, data.assignedCount - data.wonCount - data.lostCount);
+	const totalCollected = data.sales.reduce((sum, sale) => sum + sale.amount_paid, 0);
+	const totalDue = data.sales.reduce((sum, sale) => sum + sale.remaining_amount, 0);
 
 	return (
 		<div className="space-y-6">
@@ -35,6 +38,41 @@ export default async function AdvisorDashboardPage() {
 					</Link>
 				}
 			/>
+
+			<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+				<Card className="bg-zinc-100 border-zinc-200">
+					<CardContent className="p-6">
+						<div className="flex items-center gap-2 text-zinc-500 mb-2 text-xs font-bold uppercase tracking-wider">
+							<Users className="h-4 w-4" /> My Enquiries
+						</div>
+						<p className="text-2xl font-bold">{data.assignedCount}</p>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardContent className="p-6">
+						<div className="flex items-center gap-2 text-blue-600 mb-2 text-xs font-bold uppercase tracking-wider">
+							<Activity className="h-4 w-4" /> Active Leads
+						</div>
+						<p className="text-2xl font-bold">{activeEnquiries}</p>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardContent className="p-6">
+						<div className="flex items-center gap-2 text-green-600 mb-2 text-xs font-bold uppercase tracking-wider">
+							<UserCheck className="h-4 w-4" /> Closed Won Customers
+						</div>
+						<p className="text-2xl font-bold">{data.wonCount}</p>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardContent className="p-6">
+						<div className="flex items-center gap-2 text-red-600 mb-2 text-xs font-bold uppercase tracking-wider">
+							<UserMinus className="h-4 w-4" /> Closed Lost
+						</div>
+						<p className="text-2xl font-bold">{data.lostCount}</p>
+					</CardContent>
+				</Card>
+			</div>
 
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
 				{modules.sales && (
@@ -53,6 +91,26 @@ export default async function AdvisorDashboardPage() {
 									<IndianRupee className="h-4 w-4" /> Project revenue (total)
 								</div>
 								<p className="text-2xl font-bold">{formatCurrency(data.totalRevenue)}</p>
+							</CardContent>
+						</Card>
+					</>
+				)}
+				{modules.payments && (
+					<>
+						<Card>
+							<CardContent className="p-6">
+								<div className="flex items-center gap-2 text-green-600 mb-2 text-xs font-bold uppercase tracking-wider">
+									<CreditCard className="h-4 w-4" /> Collected on My Sales
+								</div>
+								<p className="text-2xl font-bold text-green-700">{formatCurrency(totalCollected)}</p>
+							</CardContent>
+						</Card>
+						<Card>
+							<CardContent className="p-6">
+								<div className="flex items-center gap-2 text-amber-600 mb-2 text-xs font-bold uppercase tracking-wider">
+									<Clock className="h-4 w-4" /> Due on My Sales
+								</div>
+								<p className="text-2xl font-bold text-amber-700">{formatCurrency(totalDue)}</p>
 							</CardContent>
 						</Card>
 					</>

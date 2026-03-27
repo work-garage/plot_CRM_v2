@@ -125,15 +125,6 @@ export function SaleForm({
     return set;
   }, [advisorAssignments, selectedAdvisorId]);
 
-  const allowedAdvisorIdsForProject = useMemo(() => {
-    if (!selectedProjectId) return null;
-    const set = new Set<string>();
-    (advisorAssignments ?? []).forEach((a) => {
-      if (a.project_id === selectedProjectId) set.add(a.advisor_id);
-    });
-    return set;
-  }, [advisorAssignments, selectedProjectId]);
-
   const filteredPlots = useMemo(() => {
     if (soldByAdmin) return plots;
     if (!allowedProjectIdsForAdvisor) return plots;
@@ -143,10 +134,7 @@ export function SaleForm({
     });
   }, [allowedProjectIdsForAdvisor, plots, soldByAdmin]);
 
-  const filteredAdvisors = useMemo(() => {
-    if (!allowedAdvisorIdsForProject) return advisors;
-    return advisors.filter((a) => allowedAdvisorIdsForProject.has(a.id));
-  }, [advisors, allowedAdvisorIdsForProject]);
+  const filteredAdvisors = advisors;
 
   // keep selections consistent when filters change
   useEffect(() => {
@@ -159,16 +147,6 @@ export function SaleForm({
       form.setValue("plot_id", "");
     }
   }, [allowedProjectIdsForAdvisor, form, selectedPlotId, selectedProjectId]);
-
-  useEffect(() => {
-    if (
-      selectedAdvisorId &&
-      allowedAdvisorIdsForProject &&
-      !allowedAdvisorIdsForProject.has(selectedAdvisorId)
-    ) {
-      form.setValue("advisor_id", "");
-    }
-  }, [allowedAdvisorIdsForProject, form, selectedAdvisorId]);
 
   useEffect(() => {
     if (soldByAdmin) form.setValue("advisor_id", null);
@@ -506,15 +484,15 @@ export function SaleForm({
                     name="advisor_id"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Select Advisor *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Choose channel partner" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {filteredAdvisors.map((advisor) => (
+                      <FormLabel>Select Partner *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose any partner" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {filteredAdvisors.map((advisor) => (
                               <SelectItem key={advisor.id} value={advisor.id}>
                                 {advisor.name} ({advisor.code})
                               </SelectItem>

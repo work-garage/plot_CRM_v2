@@ -242,7 +242,7 @@ export function ReminderItem({ reminder, customers = [] }: ReminderItemProps) {
 						<AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
 						<AlertDialogDescription>
 							This action cannot be undone. This will permanently delete the
-							reminder for "{reminder.title}".
+							reminder for &quot;{reminder.title}&quot;.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>

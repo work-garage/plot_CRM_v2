@@ -21,6 +21,10 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.next-dev.log
+
+# local tooling
+.eslintcache
 
 # local env files
 .env*.local

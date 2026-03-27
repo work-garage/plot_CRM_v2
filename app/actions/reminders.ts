@@ -6,6 +6,8 @@ import {
 	reminderSchema,
 	type ReminderFormValues,
 } from "@/lib/validations/reminder";
+import { getScopeContext } from "@/lib/server/scope";
+import { LEAD_STATUS } from "@/lib/constants/lead-status";
 
 export type ActionResponse = {
 	success: boolean;
@@ -13,12 +15,8 @@ export type ActionResponse = {
 };
 
 async function getAuthContext(supabase: NonNullable<Awaited<ReturnType<typeof createClient>>>) {
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
-	const role = (user?.user_metadata as any)?.role;
-	const advisorId = (user?.user_metadata as any)?.advisor_id as string | undefined;
-	return { user, role, advisorId };
+	const { user, role, advisorId } = await getScopeContext(supabase as any);
+	return { user, role, advisorId: advisorId ?? undefined };
 }
 
 async function ensureAdvisorReminderAccess(
@@ -234,7 +232,7 @@ export async function getReminders() {
 			.from("customers")
 			.select("id")
 			.eq("advisor_id", advisorId)
-			.eq("lead_status", "?? Closed Won")
+			.eq("lead_status", LEAD_STATUS.closedWon)
 			.eq("is_active", true);
 
 		const customerIds = (customerRows ?? []).map((c: any) => c.id);

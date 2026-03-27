@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
   Loader2,
@@ -60,12 +60,7 @@ export function CustomerFollowUps({ customerId }: { customerId: string }) {
     setShowForm(true);
   }
 
-  useEffect(() => {
-    if (!customerId) return;
-    void load();
-  }, [customerId]);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getCustomerFollowUps(customerId);
@@ -75,7 +70,12 @@ export function CustomerFollowUps({ customerId }: { customerId: string }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [customerId]);
+
+  useEffect(() => {
+    if (!customerId) return;
+    void load();
+  }, [customerId, load]);
 
   async function handleSubmit() {
     if (!form.notes?.trim() && !form.whatsapp_done && !form.call_done && !form.site_visit_done) {
@@ -239,7 +239,7 @@ export function CustomerFollowUps({ customerId }: { customerId: string }) {
 
       {followUps.length === 0 && !showForm ? (
         <div className="rounded-lg border border-dashed bg-zinc-50/50 py-6 text-center text-sm text-zinc-500">
-          No follow-ups recorded yet. Click "Log Follow-up" to start tracking.
+          No follow-ups recorded yet. Click &quot;Log Follow-up&quot; to start tracking.
         </div>
       ) : (
         <div className="space-y-3">

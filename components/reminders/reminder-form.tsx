@@ -407,7 +407,7 @@ export function ReminderForm({
 													/>
 												</FormControl>
 												<FormDescription>
-													If you don't select a customer, enter a phone number
+													If you don&apos;t select a customer, enter a phone number
 													to send WhatsApp.
 												</FormDescription>
 												<FormMessage />

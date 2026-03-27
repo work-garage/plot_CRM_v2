@@ -67,6 +67,7 @@ export function HrEmployeeDialog(props: HrEmployeeDialogProps) {
 	const { onSuccess } = props;
 	const router = useRouter();
 	const isEdit = props.variant === "edit";
+	const editingEmployee = props.variant === "edit" ? props.employee : null;
 	const [internalOpen, setInternalOpen] = useState(false);
 	const open = isEdit ? props.open : internalOpen;
 	const setOpen = isEdit ? props.onOpenChange : setInternalOpen;
@@ -76,12 +77,12 @@ export function HrEmployeeDialog(props: HrEmployeeDialogProps) {
 
 	useEffect(() => {
 		if (!open) return;
-		if (isEdit && props.variant === "edit") {
-			setForm(formFromEmployee(props.employee));
+		if (isEdit && editingEmployee) {
+			setForm(formFromEmployee(editingEmployee));
 			return;
 		}
 		setForm(defaultForm());
-	}, [open, isEdit, isEdit && props.variant === "edit" ? props.employee.id : "create"]);
+	}, [open, isEdit, editingEmployee]);
 
 	const submit = async () => {
 		setLoading(true);
