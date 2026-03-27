@@ -36,12 +36,11 @@ export default async function CommissionsPage({
 
     // Status filter
     if (status) {
-      const total = Number(commission.total_commission_amount ?? 0);
       const paid = Number(commission.amount_paid ?? 0);
-      if (status === "pending" && paid > 0) return false;
-      if (status === "partial" && (paid === 0 || paid === total)) return false;
-      if (status === "paid" && paid === 0) return false;
-      if (status === "paid" && paid < total) return false;
+      const remaining = Math.max(0, Number((commission as any).remaining_commission ?? 0));
+      if (status === "pending" && !(paid === 0 && remaining > 0)) return false;
+      if (status === "partial" && !(paid > 0 && remaining > 0)) return false;
+      if (status === "paid" && remaining > 0) return false;
     }
 
     return true;
@@ -49,7 +48,10 @@ export default async function CommissionsPage({
 
   const totalCommissions = filteredCommissions.reduce((sum, c) => sum + Number(c.total_commission_amount), 0);
   const totalPaid = filteredCommissions.reduce((sum, c) => sum + Number(c.amount_paid), 0);
-  const totalPending = Math.max(0, totalCommissions - totalPaid);
+  const totalPending = filteredCommissions.reduce(
+    (sum, c) => sum + Math.max(0, Number((c as any).remaining_commission ?? 0)),
+    0,
+  );
   const totalExtraPaid = filteredCommissions.reduce((sum, c: any) => {
     const list = Array.isArray(c.advisor_commission_payments)
       ? c.advisor_commission_payments

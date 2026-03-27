@@ -1,12 +1,12 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { computePaymentDueMeta } from "@/lib/payment-due";
 import { revalidatePath } from "next/cache";
 import { saleSchema, type SaleFormValues } from "@/lib/validations/sale";
 import { calculateFinance } from "@/lib/utils/finance";
 import { getScopeContext } from "@/lib/server/scope";
 import { LEAD_STATUS } from "@/lib/constants/lead-status";
+import { normalizeSaleRecord, normalizeSaleRecords } from "@/lib/utils/sale-normalization";
 
 export type ActionResponse = {
   success: boolean;
@@ -63,34 +63,24 @@ export async function createSale(values: SaleFormValues): Promise<ActionResponse
   const requestedAdvisorId = soldByAdmin
     ? null
     : parsed.data.advisor_id ?? customerRow.advisor_id ?? null;
+  const requestedAdvisorRate = soldByAdmin
+    ? plotBaseRate
+    : Number(parsed.data.advisor_rate_per_sqft ?? 0);
 
   if (!soldByAdmin && !requestedAdvisorId) {
     return { success: false, error: "Advisor is required when not sold by admin." };
   }
 
-  let faceRate = plotBaseRate;
-  if (!soldByAdmin && requestedAdvisorId) {
-    const { data: assignment } = await supabase
-      .from("advisor_project_commissions")
-      .select("commission_rate, commission_token")
-      .eq("project_id", plotRow.project_id)
-      .eq("advisor_id", requestedAdvisorId)
-      .maybeSingle();
+  if (!soldByAdmin && (!Number.isFinite(requestedAdvisorRate) || requestedAdvisorRate <= 0)) {
+    return { success: false, error: "Advisor rate per sqft must be a positive value." };
+  }
 
-    if (!assignment) {
-      return {
-        success: false,
-        error: "Advisor is not assigned to this project. Assign the advisor in the project dashboard first.",
-      };
-    }
-
-    faceRate = Number(assignment.commission_rate ?? assignment.commission_token ?? 0);
-    if (plotBaseRate > 0 && faceRate > 0 && faceRate < plotBaseRate) {
-      return {
-        success: false,
-        error: `Advisor rate (Rs ${faceRate.toLocaleString("en-IN")}/sqft) cannot be less than this plot's base rate (Rs ${plotBaseRate.toLocaleString("en-IN")}/sqft).`,
-      };
-    }
+  const faceRate = requestedAdvisorRate;
+  if (!soldByAdmin && plotBaseRate > 0 && faceRate < plotBaseRate) {
+    return {
+      success: false,
+      error: `Advisor rate (Rs ${faceRate.toLocaleString("en-IN")}/sqft) cannot be less than this plot's base rate (Rs ${plotBaseRate.toLocaleString("en-IN")}/sqft).`,
+    };
   }
 
   const isFullPayment = parsed.data.sale_phase === "full_payment";
@@ -143,6 +133,7 @@ export async function createSale(values: SaleFormValues): Promise<ActionResponse
       plot_id: parsed.data.plot_id,
       customer_id: parsed.data.customer_id,
       advisor_id: soldByAdmin ? null : requestedAdvisorId,
+      advisor_rate_per_sqft: faceRate,
       sold_by_admin: soldByAdmin,
       sale_phase: parsed.data.sale_phase,
       token_date: tokenDateToStore,
@@ -281,7 +272,7 @@ export async function getSales() {
     .select(
       `
       *,
-      plots(plot_number, projects(id, name)),
+      plots(plot_number, size_sqft, rate_per_sqft, projects(id, name)),
       customers(name, phone),
       advisors(name)
     `,
@@ -300,10 +291,7 @@ export async function getSales() {
   const saleIds = rows.map((sale: { id: string }) => sale.id);
   const lastBySale = await lastConfirmedPaymentDateBySaleId(supabase, saleIds);
 
-  return rows.map((sale) => ({
-    ...sale,
-    payment_due_meta: computePaymentDueMeta(sale, lastBySale[sale.id] ?? null),
-  }));
+  return normalizeSaleRecords(rows as any[], lastBySale);
 }
 
 export async function getSaleById(id: string) {
@@ -331,7 +319,9 @@ export async function getSaleById(id: string) {
 
   const { data, error } = await query.single();
   if (error) return null;
-  return data;
+  const saleId = String((data as any).id ?? id);
+  const lastBySale = await lastConfirmedPaymentDateBySaleId(supabase, [saleId]);
+  return normalizeSaleRecord(data as any, lastBySale[saleId] ?? null);
 }
 
 export async function getCustomerPlotSales(customerId: string) {
@@ -352,7 +342,12 @@ export async function getCustomerPlotSales(customerId: string) {
       amount_paid,
       remaining_amount,
       created_at,
-      plots(plot_number, projects(name))
+      sold_by_admin,
+      advisor_rate_per_sqft,
+      monthly_emi,
+      emi_day,
+      followup_date,
+      plots(plot_number, size_sqft, rate_per_sqft, projects(name))
     `,
     )
     .eq("customer_id", customerId)
@@ -365,5 +360,10 @@ export async function getCustomerPlotSales(customerId: string) {
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return data || [];
+  const rows = data || [];
+  const lastBySale = await lastConfirmedPaymentDateBySaleId(
+    supabase,
+    rows.map((sale: any) => sale.id),
+  );
+  return normalizeSaleRecords(rows as any[], lastBySale);
 }

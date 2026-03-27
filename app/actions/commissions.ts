@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { calculateCommissionFinance } from "@/lib/utils/commission-finance";
 
 type AdvisorCommissionPayment = {
 	id: string;
@@ -19,6 +20,26 @@ type CommissionWithPayments = {
 	advisor_commission_payments?: AdvisorCommissionPayment[];
 	[key: string]: any;
 };
+
+function normalizeCommissionRow(row: any): CommissionWithPayments {
+	const snapshot = calculateCommissionFinance({
+		saleTotalAmount: row.plot_sales?.total_sale_amount,
+		saleAmountPaid: row.plot_sales?.amount_paid,
+		plotSizeSqft: row.plot_sales?.plots?.size_sqft,
+		plotBaseRatePerSqft: row.plot_sales?.plots?.rate_per_sqft,
+		advisorAmountPaid: row.amount_paid,
+		storedTotalCommissionAmount: row.total_commission_amount,
+	});
+
+	return {
+		...row,
+		total_commission_amount: snapshot.profitTotal,
+		eligible_commission_amount: snapshot.eligibleNow,
+		remaining_commission: snapshot.remainingEligible,
+		remaining_commission_overall: snapshot.remainingOverall,
+		extra_paid_amount_total: snapshot.extraPaid,
+	};
+}
 
 export async function getCommissions() {
 	const supabase = await createClient();
@@ -93,7 +114,7 @@ export async function getCommissions() {
 		"created_at",
 		{ ascending: false }
 	);
-	if (!errWithExtra) return dataWithExtra || [];
+	if (!errWithExtra) return (dataWithExtra || []).map((row: any) => normalizeCommissionRow(row));
 
 	// Check for missing column error using PostgreSQL error codes
 	// 42703 = undefined_column, PGRST204 = PostgREST column not found
@@ -110,7 +131,7 @@ export async function getCommissions() {
 	const { data, error } = await fallbackQuery.order("created_at", { ascending: false });
 	if (error) throw new Error(error.message);
 	return (data || []).map((row): CommissionWithPayments => ({
-		...row,
+		...normalizeCommissionRow(row),
 		advisor_commission_payments: (row.advisor_commission_payments ?? []).map(
 			(p: any): AdvisorCommissionPayment => ({ ...p, extra_paid_amount: p.extra_paid_amount ?? 0 })
 		),
@@ -126,7 +147,7 @@ export async function getAdvisorCommissions(advisorId: string) {
       plot_sales(
         total_sale_amount,
         amount_paid,
-        plots(plot_number, size_sqft, projects(name))
+        plots(plot_number, size_sqft, rate_per_sqft, projects(name))
       ),
       advisor_commission_payments(
         id,
@@ -143,7 +164,7 @@ export async function getAdvisorCommissions(advisorId: string) {
       plot_sales(
         total_sale_amount,
         amount_paid,
-        plots(plot_number, size_sqft, projects(name))
+        plots(plot_number, size_sqft, rate_per_sqft, projects(name))
       ),
       advisor_commission_payments(
         id,
@@ -162,7 +183,7 @@ export async function getAdvisorCommissions(advisorId: string) {
 		.select(extraSelect)
 		.eq("advisor_id", advisorId)
 		.order("created_at", { ascending: false });
-	if (!errWithExtra) return dataWithExtra || [];
+	if (!errWithExtra) return (dataWithExtra || []).map((row: any) => normalizeCommissionRow(row));
 
 	const msg = (errWithExtra.message || "").toLowerCase();
 	if (!msg.includes("extra_paid_amount")) throw new Error(errWithExtra.message);
@@ -174,7 +195,7 @@ export async function getAdvisorCommissions(advisorId: string) {
 		.order("created_at", { ascending: false });
 	if (error) throw new Error(error.message);
 	return (data || []).map((row: any) => ({
-		...row,
+		...normalizeCommissionRow(row),
 		advisor_commission_payments: (row.advisor_commission_payments ?? []).map(
 			(p: any) => ({ ...p, extra_paid_amount: 0 })
 		),
@@ -205,7 +226,8 @@ export async function recordCommissionPayment(
       plot_sales(
         total_sale_amount,
         amount_paid,
-        sale_phase
+        sale_phase,
+        plots(size_sqft, rate_per_sqft)
       )
     `,
 		)
@@ -217,7 +239,15 @@ export async function recordCommissionPayment(
 	const alreadyPaidToAdvisor = Number(comm.amount_paid ?? 0);
 	const saleTotal = Number((comm as any).plot_sales?.total_sale_amount ?? 0);
 	const saleReceived = Number((comm as any).plot_sales?.amount_paid ?? 0); // confirmed receipts only
-	const profitTotal = Number((comm as any).total_commission_amount ?? 0);
+	const snapshot = calculateCommissionFinance({
+		saleTotalAmount: (comm as any).plot_sales?.total_sale_amount,
+		saleAmountPaid: (comm as any).plot_sales?.amount_paid,
+		plotSizeSqft: (comm as any).plot_sales?.plots?.size_sqft,
+		plotBaseRatePerSqft: (comm as any).plot_sales?.plots?.rate_per_sqft,
+		advisorAmountPaid: alreadyPaidToAdvisor,
+		storedTotalCommissionAmount: (comm as any).total_commission_amount,
+	});
+	const profitTotal = snapshot.profitTotal;
 	const add = Number(amount ?? 0);
 	if (!Number.isFinite(add) || add <= 0) {
 		return { success: false, error: "Amount must be positive" };
@@ -230,7 +260,7 @@ export async function recordCommissionPayment(
 	// eligible = profitTotal * min(1, saleReceived / saleTotal)
 	const ratio = Math.min(1, Math.max(0, saleReceived / saleTotal));
 	const eligible = Math.max(0, profitTotal) * ratio;
-	const availableToPay = Math.max(0, eligible - alreadyPaidToAdvisor);
+	const availableToPay = Math.max(0, snapshot.remainingEligible);
 	const extraPaidAmount = Math.max(0, add - availableToPay);
 	if (extraPaidAmount > 0.0001 && !meta?.allow_extra) {
 		return {

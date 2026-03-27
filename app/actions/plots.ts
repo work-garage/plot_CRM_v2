@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { plotSchema, type PlotFormValues } from "@/lib/validations/plot";
+import { normalizeSaleRecord } from "@/lib/utils/sale-normalization";
 
 export type ActionResponse = {
 	success: boolean;
@@ -215,6 +216,7 @@ export type PlotWithSaleInfo = {
 		token_date: string | null;
 		agreement_date: string | null;
 		monthly_emi: number | null;
+		payment_due_meta?: any;
 	} | null;
 	payments?: Array<{
 		id: string;
@@ -258,9 +260,13 @@ export async function getPlotsByProject(
       token_date,
       agreement_date,
       monthly_emi,
+      emi_day,
       sold_by_admin,
+      followup_date,
+      advisor_rate_per_sqft,
       customers!inner(name),
-      advisors(name)
+      advisors(name),
+      plots!inner(size_sqft, rate_per_sqft)
     `
 		)
 		.in("plot_id", plotIds)
@@ -269,18 +275,23 @@ export async function getPlotsByProject(
 	// Build a map of plot_id → sale info
 	const salesMap = new Map<string, PlotWithSaleInfo["sale"]>();
 	sales?.forEach((s: any) => {
+    const normalized = normalizeSaleRecord({
+      ...s,
+      plots: s.plots,
+    });
 		salesMap.set(s.plot_id, {
 			id: s.id,
 			customer_name: s.customers?.name ?? "—",
 			advisor_name: s.sold_by_admin ? "Admin (Direct)" : s.advisors?.name ?? "—",
-			sold_by_admin: Boolean(s.sold_by_admin),
-			total_sale_amount: Number(s.total_sale_amount),
-			amount_paid: Number(s.amount_paid ?? 0),
-			remaining_amount: Number(s.remaining_amount ?? 0),
-			sale_phase: s.sale_phase,
-			token_date: s.token_date,
-			agreement_date: s.agreement_date,
-			monthly_emi: s.monthly_emi ? Number(s.monthly_emi) : null,
+			sold_by_admin: Boolean(normalized.sold_by_admin),
+			total_sale_amount: Number(normalized.total_sale_amount),
+			amount_paid: Number(normalized.amount_paid ?? 0),
+			remaining_amount: Number(normalized.remaining_amount ?? 0),
+			sale_phase: normalized.sale_phase,
+			token_date: normalized.token_date,
+			agreement_date: normalized.agreement_date,
+			monthly_emi: normalized.monthly_emi ? Number(normalized.monthly_emi) : null,
+      payment_due_meta: normalized.payment_due_meta,
 		});
 	});
 
@@ -329,9 +340,13 @@ export async function getPlotWithPayments(
       token_date,
       agreement_date,
       monthly_emi,
+      emi_day,
       sold_by_admin,
+      followup_date,
+      advisor_rate_per_sqft,
       customers!inner(name),
-      advisors(name)
+      advisors(name),
+      plots!inner(size_sqft, rate_per_sqft)
     `
 		)
 		.eq("plot_id", plotId)
@@ -343,18 +358,23 @@ export async function getPlotWithPayments(
 
 	if (saleRow) {
 		const s = saleRow as any;
+    const normalized = normalizeSaleRecord({
+      ...s,
+      plots: s.plots,
+    });
 		sale = {
 			id: s.id,
 			customer_name: s.customers?.name ?? "—",
 			advisor_name: s.sold_by_admin ? "Admin (Direct)" : s.advisors?.name ?? "—",
-			sold_by_admin: Boolean(s.sold_by_admin),
-			total_sale_amount: Number(s.total_sale_amount),
-			amount_paid: Number(s.amount_paid ?? 0),
-			remaining_amount: Number(s.remaining_amount ?? 0),
-			sale_phase: s.sale_phase,
-			token_date: s.token_date,
-			agreement_date: s.agreement_date,
-			monthly_emi: s.monthly_emi ? Number(s.monthly_emi) : null,
+			sold_by_admin: Boolean(normalized.sold_by_admin),
+			total_sale_amount: Number(normalized.total_sale_amount),
+			amount_paid: Number(normalized.amount_paid ?? 0),
+			remaining_amount: Number(normalized.remaining_amount ?? 0),
+			sale_phase: normalized.sale_phase,
+			token_date: normalized.token_date,
+			agreement_date: normalized.agreement_date,
+			monthly_emi: normalized.monthly_emi ? Number(normalized.monthly_emi) : null,
+      payment_due_meta: normalized.payment_due_meta,
 		};
 
 		// Get payments

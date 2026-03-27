@@ -62,7 +62,6 @@ export default async function ReportsPage({
 		.from("customers")
 		.select("*", { count: "exact", head: true })
 		.eq("lead_status", "🎉 Closed Won");
-	const { data: sales } = await supabase.from("plot_sales").select("total_sale_amount, amount_paid").eq("is_cancelled", false);
 	const { data: recentReminders } = await supabase
 		.from("reminders")
 		.select("*, customers(name)")
@@ -70,8 +69,8 @@ export default async function ReportsPage({
 		.order("reminder_date", { ascending: true })
 		.limit(5);
 
-	const totalSalesValue = sales?.reduce((sum, s) => sum + Number(s.total_sale_amount), 0) || 0;
-	const totalCollected = sales?.reduce((sum, s) => sum + Number(s.amount_paid), 0) || 0;
+	const totalSalesValue = Number(reportStats.summary.totalSalesValue ?? 0);
+	const totalCollected = Number(reportStats.summary.totalRevenueCollected ?? 0);
 
 	return (
 		<div className="space-y-6">

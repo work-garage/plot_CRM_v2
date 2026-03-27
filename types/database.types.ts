@@ -68,6 +68,7 @@ export type PlotSale = {
   plot_id: string;
   customer_id: string;
   advisor_id?: string | null;
+  advisor_rate_per_sqft?: number | null;
   sold_by_admin?: boolean;
   sale_phase: 'token' | 'agreement' | 'registry' | 'full_payment';
   token_date?: string;

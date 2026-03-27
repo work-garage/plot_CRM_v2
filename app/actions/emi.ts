@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getNextEmiDueDate } from "@/lib/utils/emi";
+import { normalizeSaleRecord } from "@/lib/utils/sale-normalization";
 
 export async function getEmiSales() {
 	const supabase = await createClient();
@@ -20,8 +20,9 @@ export async function getEmiSales() {
       token_date,
       agreement_date,
       sold_by_admin,
+      advisor_rate_per_sqft,
       followup_date,
-      plots(plot_number, projects(name)),
+      plots(plot_number, size_sqft, rate_per_sqft, projects(name)),
       customers(id, name, phone),
       advisors(name)
     `
@@ -48,20 +49,14 @@ export async function getEmiSales() {
 	}
 
 	const result = (sales ?? []).map((s: any) => {
-		const nextDue = getNextEmiDueDate(
-			{
-				emi_day: s.emi_day,
-				token_date: s.token_date,
-				agreement_date: s.agreement_date,
-			},
-			lastBySale[s.id]
-		);
-		const today = new Date().toISOString().slice(0, 10);
-		return {
-			...s,
-			next_emi_due: nextDue,
-			is_emi_due_today: nextDue === today && Number(s.remaining_amount ?? 0) > 0,
-		};
+    const normalized = normalizeSaleRecord(s, lastBySale[s.id] ?? null);
+    return {
+      ...normalized,
+      next_emi_due: normalized.payment_due_meta?.next_emi_due ?? null,
+      is_emi_due_today:
+        normalized.payment_due_meta?.next_emi_due === new Date().toISOString().slice(0, 10) &&
+        Number(normalized.remaining_amount ?? 0) > 0,
+    };
 	});
 
 	return result.filter((s: any) => Number(s.remaining_amount ?? 0) > 0);

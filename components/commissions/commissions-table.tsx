@@ -56,10 +56,7 @@ export function CommissionsTable({ commissions }: { commissions: any[] }) {
 
   const remaining = useMemo(() => {
     if (!selected) return 0;
-    return Math.max(
-      0,
-      Number(selected.total_commission_amount ?? 0) - Number(selected.amount_paid ?? 0)
-    );
+    return Math.max(0, Number(selected.remaining_commission ?? 0));
   }, [selected]);
 
   const totalExtraPaid = useMemo(() => {
@@ -75,19 +72,13 @@ export function CommissionsTable({ commissions }: { commissions: any[] }) {
 
   const eligibleNow = useMemo(() => {
     if (!selected) return 0;
-    const saleTotal = Number(selected.plot_sales?.total_sale_amount ?? 0);
-    const saleReceived = Number(selected.plot_sales?.amount_paid ?? 0);
-    const profitTotal = Number(selected.total_commission_amount ?? 0);
-    if (saleTotal <= 0 || profitTotal <= 0) return 0;
-    const ratio = Math.min(1, Math.max(0, saleReceived / saleTotal));
-    return profitTotal * ratio;
+    return Number(selected.eligible_commission_amount ?? 0);
   }, [selected]);
 
   const availableNow = useMemo(() => {
     if (!selected) return 0;
-    const paidToAdvisor = Number(selected.amount_paid ?? 0);
-    return Math.max(0, eligibleNow - paidToAdvisor);
-  }, [eligibleNow, selected]);
+    return Math.max(0, Number(selected.remaining_commission ?? 0));
+  }, [selected]);
 
   const canPay = !!selected && remaining > 0;
 
@@ -227,7 +218,7 @@ export function CommissionsTable({ commissions }: { commissions: any[] }) {
               {commissions.map((comm) => {
                 const rem = Math.max(
                   0,
-                  Number(comm.total_commission_amount ?? 0) - Number(comm.amount_paid ?? 0)
+                  Number(comm.remaining_commission ?? 0)
                 );
                 const isPaid = rem <= 0;
                 return (
@@ -266,9 +257,7 @@ export function CommissionsTable({ commissions }: { commissions: any[] }) {
                     </TableCell>
                     <TableCell className="font-semibold text-amber-600">
                       {formatCurrency(
-                        Number(comm.amount_paid ?? 0) > Number(comm.total_commission_amount ?? 0)
-                          ? Number(comm.amount_paid ?? 0) - Number(comm.total_commission_amount ?? 0)
-                          : 0
+                        Number(comm.extra_paid_amount_total ?? 0)
                       )}
                     </TableCell>
                     <TableCell>
@@ -623,4 +612,3 @@ function InfoRow({
     </div>
   );
 }
-

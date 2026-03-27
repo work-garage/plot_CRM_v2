@@ -129,9 +129,7 @@ export function AdvisorAnalyticsTable({
 											{modules.sales && <TableCell className="text-right font-semibold">{s.salesCount}</TableCell>}
 											{modules.sales && (
 											<TableCell className="text-right font-semibold">
-												<div>
-													<div>{formatCurrency(s.revenue - c.total)}</div>
-												</div>
+												{formatCurrency(s.revenue)}
 											</TableCell>
 											)}
 											{modules.payments && (

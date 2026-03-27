@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -111,6 +111,7 @@ export function SaleForm({
       customer_id: initialCustomerId || "",
       sold_by_admin: false,
       advisor_id: "" as string | null,
+      advisor_rate_per_sqft: undefined as any,
       sale_phase: "token",
       token_date: new Date().toISOString().split('T')[0],
       agreement_date: "",
@@ -128,6 +129,7 @@ export function SaleForm({
   const selectedCustomerId = form.watch("customer_id");
   const soldByAdmin = form.watch("sold_by_admin");
   const selectedAdvisorId = form.watch("advisor_id");
+  const advisorRatePerSqft = Number(form.watch("advisor_rate_per_sqft") ?? 0);
   const selectedPhase = form.watch("sale_phase");
   const totalSaleAmount = Number(form.watch("total_sale_amount") ?? 0);
   const downPayment = Number(form.watch("down_payment") ?? 0);
@@ -156,12 +158,36 @@ export function SaleForm({
 
   const filteredPlots = plots;
   const filteredAdvisors = advisors;
+  const lastCustomerIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (soldByAdmin) {
-      form.setValue("advisor_id", null, { shouldValidate: true });
-    } else if (!selectedAdvisorId && selectedCustomer?.advisor_id) {
-      form.setValue("advisor_id", selectedCustomer.advisor_id, { shouldValidate: true });
+    if (!selectedCustomerId) return;
+    if (lastCustomerIdRef.current === selectedCustomerId) return;
+    lastCustomerIdRef.current = selectedCustomerId;
+
+    const preferredAdvisorId = selectedCustomer?.advisor_id ?? null;
+    if (preferredAdvisorId) {
+      form.setValue("sold_by_admin", false, { shouldValidate: false, shouldDirty: false });
+      form.setValue("advisor_id", preferredAdvisorId, { shouldValidate: true, shouldDirty: false });
+      return;
+    }
+
+    form.setValue("sold_by_admin", true, { shouldValidate: false, shouldDirty: false });
+    form.setValue("advisor_id", null, { shouldValidate: false, shouldDirty: false });
+  }, [form, selectedCustomer?.advisor_id, selectedCustomerId]);
+
+  useEffect(() => {
+    if (soldByAdmin && selectedAdvisorId) {
+      form.setValue("advisor_id", null, { shouldValidate: false, shouldDirty: false });
+    }
+  }, [form, selectedAdvisorId, soldByAdmin]);
+
+  useEffect(() => {
+    if (!soldByAdmin && !selectedAdvisorId && selectedCustomer?.advisor_id) {
+      form.setValue("advisor_id", selectedCustomer.advisor_id, {
+        shouldValidate: true,
+        shouldDirty: false,
+      });
     }
   }, [form, selectedAdvisorId, selectedCustomer?.advisor_id, soldByAdmin]);
 
@@ -188,27 +214,55 @@ export function SaleForm({
     );
   }, [advisorAssignments, selectedAdvisorId, selectedProjectId]);
 
-  const assignedFaceRatePerSqft = soldByAdmin
-    ? plotBaseRatePerSqft
-    : Number((advisorAssignment as any)?.commission_rate ?? 0);
+  const assignedFaceRatePerSqft = Number((advisorAssignment as any)?.commission_rate ?? 0);
+  const effectiveRatePerSqft = soldByAdmin ? plotBaseRatePerSqft : advisorRatePerSqft;
   const receivedNow = Math.max(0, downPayment);
   const autoSellingPrice =
-    plotSize > 0 && assignedFaceRatePerSqft > 0 ? plotSize * assignedFaceRatePerSqft : 0;
-  const assignmentMissing =
-    !soldByAdmin && !!selectedPlot && !!selectedAdvisorId && !advisorAssignment;
+    plotSize > 0 && effectiveRatePerSqft > 0 ? plotSize * effectiveRatePerSqft : 0;
   const remaining = Math.max(0, totalSaleAmount - downPayment);
+
+  useEffect(() => {
+    if (!selectedPlot) {
+      form.setValue("advisor_rate_per_sqft", undefined as any, {
+        shouldValidate: false,
+        shouldDirty: false,
+      });
+      return;
+    }
+
+    const nextRate = soldByAdmin
+      ? plotBaseRatePerSqft
+      : assignedFaceRatePerSqft > 0
+        ? assignedFaceRatePerSqft
+        : plotBaseRatePerSqft > 0
+          ? plotBaseRatePerSqft
+          : undefined;
+
+    form.setValue("advisor_rate_per_sqft", nextRate as any, {
+      shouldValidate: !soldByAdmin,
+      shouldDirty: false,
+    });
+  }, [
+    assignedFaceRatePerSqft,
+    form,
+    plotBaseRatePerSqft,
+    selectedAdvisorId,
+    selectedPlot,
+    selectedPlotId,
+    soldByAdmin,
+  ]);
 
   useEffect(() => {
     if (pricingMode !== "auto") return;
     if (!selectedPlot) {
-      form.setValue("total_sale_amount", undefined as any, { shouldValidate: true });
+      form.setValue("total_sale_amount", undefined as any, { shouldValidate: false });
       return;
     }
     if (autoSellingPrice > 0) {
       form.setValue("total_sale_amount", autoSellingPrice, { shouldValidate: true });
       return;
     }
-    form.setValue("total_sale_amount", undefined as any, { shouldValidate: true });
+    form.setValue("total_sale_amount", undefined as any, { shouldValidate: false });
   }, [autoSellingPrice, form, pricingMode, selectedPlot]);
 
   useEffect(() => {
@@ -246,7 +300,7 @@ export function SaleForm({
       return calculateFinance({
         plotSizeSqft: plotSize,
         baseRatePerSqft: plotBaseRatePerSqft,
-        advisorRatePerSqft: assignedFaceRatePerSqft || null,
+        advisorRatePerSqft: effectiveRatePerSqft || null,
         sellingPriceOverride: totalSaleAmount,
         downPayment: receivedNow,
         otherPayments: 0,
@@ -269,7 +323,7 @@ export function SaleForm({
       };
     }
   }, [
-    assignedFaceRatePerSqft,
+    effectiveRatePerSqft,
     plotBaseRatePerSqft,
     plotSize,
     receivedNow,
@@ -310,6 +364,12 @@ export function SaleForm({
       customer_id: randomCustomer.id,
       sold_by_admin: false,
       advisor_id: randomAdvisor?.id ?? null,
+      advisor_rate_per_sqft: (() => {
+        const nextRate = Number(
+          randomAssignment?.commission_rate ?? randomPlot.rate_per_sqft ?? 0,
+        );
+        return nextRate > 0 ? nextRate : undefined;
+      })(),
       sale_phase: "token",
       token_date: new Date().toISOString().split('T')[0],
       total_sale_amount: selling || undefined,
@@ -621,6 +681,35 @@ export function SaleForm({
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
+                  {!soldByAdmin ? (
+                    <FormField
+                      control={form.control}
+                      name="advisor_rate_per_sqft"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2">
+                          <FormLabel>Advisor Rate / sqft</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              {...field}
+                              value={field.value ?? ""}
+                              onChange={(e) => {
+                                field.onChange(parseNonNegativeNumber(e.target.value));
+                              }}
+                            />
+                          </FormControl>
+                          <p className="text-[11px] text-zinc-500">
+                            {assignedFaceRatePerSqft > 0
+                              ? `Assigned project rate: ${formatCurrency(assignedFaceRatePerSqft)}/sqft`
+                              : `Defaulted to plot base rate ${formatCurrency(plotBaseRatePerSqft)}/sqft.`}
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ) : null}
                   <FormField
                     control={form.control}
                     name="total_sale_amount"
@@ -715,12 +804,6 @@ export function SaleForm({
                       {soldByAdmin ? "Pricing (Admin Direct - No Commission)" : "Pricing, Profit & Advisor Earnings"}
                     </h4>
 
-                    {assignmentMissing ? (
-                      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
-                        This advisor is not assigned to the selected plot&apos;s project. The plot remains selected, but submission stays blocked until you choose a valid advisor.
-                      </div>
-                    ) : null}
-
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                       <div>
                         <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
@@ -752,7 +835,7 @@ export function SaleForm({
                           {soldByAdmin ? "Admin (plot base) / sqft" : "Advisor Rate / sqft"}
                         </div>
                         <div className="font-semibold text-zinc-900 text-right">
-                          {assignedFaceRatePerSqft > 0 ? `${formatCurrencyShort(assignedFaceRatePerSqft)}/sqft` : "₹0/sqft"}
+                          {effectiveRatePerSqft > 0 ? `${formatCurrencyShort(effectiveRatePerSqft)}/sqft` : "₹0/sqft"}
                         </div>
                       </div>
 
@@ -942,7 +1025,7 @@ export function SaleForm({
               </Button>
               <Button
                 type="submit"
-                disabled={loading || assignmentMissing}
+                disabled={loading}
                 className={`min-w-[130px] transition-all duration-300 ${
                   loading
                     ? "scale-[1.02] shadow-md"

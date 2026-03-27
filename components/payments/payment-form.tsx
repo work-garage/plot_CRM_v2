@@ -75,7 +75,10 @@ export function PaymentForm({ sales, initialSaleId }: PaymentFormProps) {
   const uploadRecordId = String(activeSale?.id ?? currentSaleId ?? "draft-payment");
   const saleTotal = Number(activeSale?.total_sale_amount ?? 0);
   const salePaid = Number(activeSale?.amount_paid ?? 0);
-  const saleRemaining = Math.max(0, saleTotal - salePaid);
+  const saleRemaining = Math.max(
+    0,
+    Number(activeSale?.remaining_amount ?? Math.max(0, saleTotal - salePaid)),
+  );
 
   // Update customer_id when sale_id changes
   useEffect(() => {
@@ -94,10 +97,7 @@ export function PaymentForm({ sales, initialSaleId }: PaymentFormProps) {
     const sale = initialSaleId ? selectedSale : sales[Math.floor(Math.random() * sales.length)];
     if (!sale) return;
 
-    const remaining = Math.max(
-      0,
-      Number(sale.total_sale_amount ?? 0) - Number(sale.amount_paid ?? 0)
-    );
+    const remaining = Math.max(0, Number(sale.remaining_amount ?? 0));
     form.reset({
       sale_id: sale.id,
       customer_id: sale.customer_id,

@@ -8,6 +8,7 @@ import {
   type AdvisorFormValues,
 } from "@/lib/validations/advisor";
 import { LEAD_STATUS } from "@/lib/constants/lead-status";
+import { calculateCommissionFinance } from "@/lib/utils/commission-finance";
 
 export type ActionResponse = {
   success: boolean;
@@ -295,20 +296,21 @@ export async function getAdvisorAnalytics(advisorId: string): Promise<AdvisorAna
   }));
 
   const commissionList = (commissions ?? []).map((commission: any) => {
-    const saleTotal = Number(commission.plot_sales?.total_sale_amount ?? 0);
-    const saleReceived = Number(commission.plot_sales?.amount_paid ?? 0);
-    const plotSize = Number(commission.plot_sales?.plots?.size_sqft ?? 0);
-    const baseRate = Number(commission.plot_sales?.plots?.rate_per_sqft ?? 0);
-    const profitMax = Math.max(0, saleTotal - plotSize * baseRate);
-    const ratio = saleTotal > 0 ? Math.min(1, Math.max(0, saleReceived / saleTotal)) : 0;
-    const eligibleNow = profitMax * ratio;
     const paid = Number(commission.amount_paid ?? 0);
+    const snapshot = calculateCommissionFinance({
+      saleTotalAmount: commission.plot_sales?.total_sale_amount,
+      saleAmountPaid: commission.plot_sales?.amount_paid,
+      plotSizeSqft: commission.plot_sales?.plots?.size_sqft,
+      plotBaseRatePerSqft: commission.plot_sales?.plots?.rate_per_sqft,
+      advisorAmountPaid: paid,
+      storedTotalCommissionAmount: commission.total_commission_amount,
+    });
     return {
       id: commission.id,
       plot_number: commission.plot_sales?.plots?.plot_number ?? "-",
-      total_commission_amount: profitMax,
+      total_commission_amount: snapshot.profitTotal,
       amount_paid: paid,
-      remaining_commission: Math.max(0, eligibleNow - paid),
+      remaining_commission: snapshot.remainingEligible,
     };
   });
 

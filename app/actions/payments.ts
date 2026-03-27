@@ -2,12 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { computePaymentDueMeta } from "@/lib/payment-due";
 import {
   paymentSchema,
   type PaymentFormValues,
 } from "@/lib/validations/payment";
 import { getScopeContext } from "@/lib/server/scope";
+import { normalizeSaleRecord } from "@/lib/utils/sale-normalization";
 
 export type ActionResponse = {
   success: boolean;
@@ -108,18 +108,8 @@ function enrichPaymentsWithDue(rows: any[], lastBySale: Record<string, string>) 
     const sale = payment.plot_sales as Record<string, unknown> | null | undefined;
     const saleId = sale?.id as string | undefined;
     const last = saleId ? lastBySale[saleId] : undefined;
-    const meta = computePaymentDueMeta(
-      {
-        remaining_amount: sale?.remaining_amount,
-        monthly_emi: sale?.monthly_emi,
-        emi_day: sale?.emi_day,
-        token_date: (sale?.token_date as string) ?? null,
-        agreement_date: (sale?.agreement_date as string) ?? null,
-        followup_date: (sale?.followup_date as string) ?? null,
-      },
-      last,
-    );
-    return { ...payment, payment_due_meta: meta };
+    const normalizedSale = sale ? normalizeSaleRecord(sale as any, last ?? null) : null;
+    return { ...payment, plot_sales: normalizedSale, payment_due_meta: normalizedSale?.payment_due_meta };
   });
 }
 
@@ -138,13 +128,18 @@ export async function getPayments(filters?: PaymentsFilter) {
       plot_sales(
         id,
         advisor_id,
+        total_sale_amount,
+        amount_paid,
         remaining_amount,
         monthly_emi,
         emi_day,
+        receipt_path,
         token_date,
         agreement_date,
         followup_date,
-        plots(plot_number, projects(name))
+        sold_by_admin,
+        advisor_rate_per_sqft,
+        plots(plot_number, size_sqft, rate_per_sqft, projects(name))
       )
     `,
     )

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getScopeContext } from "@/lib/server/scope";
 import { isClosedLostStatus, isClosedWonStatus } from "@/lib/constants/lead-status";
+import { calculateCommissionFinance } from "@/lib/utils/commission-finance";
 
 export type ReportFilters = {
   startDate?: string;
@@ -77,7 +78,7 @@ export async function getReportStats(filters?: ReportFilters) {
 
   let advisorsQuery = supabase
     .from("advisors")
-    .select("id, name, advisor_commissions(total_commission_amount, amount_paid)");
+    .select("id, name, advisor_commissions(total_commission_amount, amount_paid, plot_sales(total_sale_amount, amount_paid, plots(size_sqft, rate_per_sqft)))");
   if (role === "advisor" && advisorId) {
     advisorsQuery = advisorsQuery.eq("id", advisorId);
   }
@@ -103,13 +104,28 @@ export async function getReportStats(filters?: ReportFilters) {
 
   const advisorPerformance = (advisors ?? []).map((advisor: any) => {
     const commissions = (advisor.advisor_commissions as any[]) || [];
-    const total = commissions.reduce((sum, commission) => sum + Number(commission.total_commission_amount ?? 0), 0);
-    const paid = commissions.reduce((sum, commission) => sum + Number(commission.amount_paid ?? 0), 0);
+    const totals = commissions.reduce(
+      (sum, commission) => {
+        const snapshot = calculateCommissionFinance({
+          saleTotalAmount: commission.plot_sales?.total_sale_amount,
+          saleAmountPaid: commission.plot_sales?.amount_paid,
+          plotSizeSqft: commission.plot_sales?.plots?.size_sqft,
+          plotBaseRatePerSqft: commission.plot_sales?.plots?.rate_per_sqft,
+          advisorAmountPaid: commission.amount_paid,
+          storedTotalCommissionAmount: commission.total_commission_amount,
+        });
+        sum.total += snapshot.profitTotal;
+        sum.paid += Number(commission.amount_paid ?? 0);
+        sum.pending += snapshot.remainingEligible;
+        return sum;
+      },
+      { total: 0, paid: 0, pending: 0 },
+    );
     return {
       name: advisor.name,
-      totalCommission: total,
-      paidCommission: paid,
-      pending: total - paid,
+      totalCommission: totals.total,
+      paidCommission: totals.paid,
+      pending: totals.pending,
     };
   });
 

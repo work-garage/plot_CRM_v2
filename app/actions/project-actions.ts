@@ -279,7 +279,7 @@ export async function getProjectWithStats(
 			salesQuery = salesQuery.eq("advisor_id", advisorId);
 		}
 
-		const { data: sales } = await salesQuery.limit(5);
+		const { data: sales } = await salesQuery;
 
 		if (sales) {
 			totalRevenue = sales.reduce(
@@ -287,7 +287,7 @@ export async function getProjectWithStats(
 				0
 			);
 
-			recentSales = sales.map((s: any) => ({
+			recentSales = sales.slice(0, 5).map((s: any) => ({
 				id: s.id,
 				plot_number: s.plots?.plot_number ?? "—",
 				customer_name: s.customers?.name ?? "—",

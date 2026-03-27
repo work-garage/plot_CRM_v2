@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
+import { normalizeSaleRecord } from "@/lib/utils/sale-normalization";
 
 export type ReceiptResult = {
 	success: boolean;
@@ -40,6 +41,7 @@ export async function generateReceipt(saleId: string): Promise<ReceiptResult> {
       monthly_emi,
       emi_day,
       sold_by_admin,
+      advisor_rate_per_sqft,
       plots(plot_number, size_sqft, projects(name, location)),
       customers(name, phone, address),
       advisors(name)
@@ -53,11 +55,15 @@ export async function generateReceipt(saleId: string): Promise<ReceiptResult> {
 	}
 
 	const s = sale as any;
-	const project = s.plots?.projects;
-	const plot = s.plots;
-	const customer = s.customers;
-	const advisor = s.advisors;
-	const soldBy = s.sold_by_admin ? "Admin (Direct)" : advisor?.name ?? "—";
+  const normalized = normalizeSaleRecord({
+    ...s,
+    plots: s.plots,
+  });
+	const project = normalized.plots?.projects;
+	const plot = normalized.plots;
+	const customer = normalized.customers;
+	const advisor = normalized.advisors;
+	const soldBy = normalized.sold_by_admin ? "Admin (Direct)" : advisor?.name ?? "—";
 
 	// Build a styled PDF bill with proper table layout
 	const pdfDoc = await PDFDocument.create();
@@ -106,7 +112,7 @@ export async function generateReceipt(saleId: string): Promise<ReceiptResult> {
 		font: fontBold,
 		color: rgb(1, 1, 1),
 	});
-	page.drawText(`Date: ${formatDate(s.token_date || s.agreement_date)}`, {
+	page.drawText(`Date: ${formatDate(normalized.token_date || normalized.agreement_date)}`, {
 		x: width - 220,
 		y: height - 70,
 		size: 10,
@@ -226,22 +232,22 @@ export async function generateReceipt(saleId: string): Promise<ReceiptResult> {
 	drawTable("Transaction Details", [
 		{ key: "Project", value: `${project?.name ?? "—"}${project?.location ? `, ${project.location}` : ""}` },
 		{ key: "Plot", value: `${plot?.plot_number ?? "—"} (${plot?.size_sqft ?? "—"} sqft)` },
-		{ key: "Phase", value: String(s.sale_phase ?? "").replace("_", " ") },
-		{ key: "Token Date", value: formatDate(s.token_date) },
-		{ key: "Agreement Date", value: formatDate(s.agreement_date) },
+		{ key: "Phase", value: String(normalized.sale_phase ?? "").replace("_", " ") },
+		{ key: "Token Date", value: formatDate(normalized.token_date) },
+		{ key: "Agreement Date", value: formatDate(normalized.agreement_date) },
 		{ key: "Sold By", value: soldBy },
 	]);
 
 	const paymentRows: Array<{ key: string; value: string; strong?: boolean }> = [
-		{ key: "Total Sale Amount", value: formatCurrency(Number(s.total_sale_amount ?? 0)) },
-		{ key: "Down Payment", value: formatCurrency(Number(s.down_payment ?? 0)) },
-		{ key: "Amount Paid", value: formatCurrency(Number(s.amount_paid ?? 0)) },
-		{ key: "Remaining Amount", value: formatCurrency(Number(s.remaining_amount ?? 0)), strong: true },
+		{ key: "Total Sale Amount", value: formatCurrency(Number(normalized.total_sale_amount ?? 0)) },
+		{ key: "Down Payment", value: formatCurrency(Number(normalized.down_payment ?? 0)) },
+		{ key: "Amount Paid", value: formatCurrency(Number(normalized.amount_paid ?? 0)) },
+		{ key: "Remaining Amount", value: formatCurrency(Number(normalized.remaining_amount ?? 0)), strong: true },
 	];
-	if (s.monthly_emi) {
+	if (normalized.monthly_emi) {
 		paymentRows.push({
 			key: "Monthly EMI",
-			value: `${formatCurrency(Number(s.monthly_emi))} (Day ${s.emi_day ?? "—"})`,
+			value: `${formatCurrency(Number(normalized.monthly_emi))} (Day ${normalized.emi_day ?? "—"})`,
 		});
 	}
 	drawTable("Payment Summary", paymentRows);

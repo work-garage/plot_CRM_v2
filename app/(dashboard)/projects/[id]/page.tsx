@@ -237,7 +237,7 @@ export default async function ProjectDetailPage({
 					<Card>
 						<CardHeader className="pb-2">
 							<CardTitle className="text-sm font-medium text-zinc-500">
-								Total Revenue
+								Total Sales Value
 							</CardTitle>
 						</CardHeader>
 						<CardContent>

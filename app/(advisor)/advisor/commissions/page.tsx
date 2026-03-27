@@ -17,16 +17,18 @@ export default async function AdvisorCommissionsPage() {
   const commissions = await getAdvisorCommissions(advisorId);
 
   const totals = commissions.reduce(
-    (acc, c: any) => {
+    (acc: { total: number; paid: number; pending: number }, c: any) => {
       const total = Number(c.total_commission_amount ?? 0);
       const paid = Number(c.amount_paid ?? 0);
+      const pendingNow = Number(c.remaining_commission ?? 0);
       acc.total += total;
       acc.paid += paid;
+      acc.pending += pendingNow;
       return acc;
     },
-    { total: 0, paid: 0 }
+    { total: 0, paid: 0, pending: 0 }
   );
-  const pending = totals.total - totals.paid;
+  const pending = totals.pending;
 
   return (
     <div className="space-y-6">
@@ -84,7 +86,7 @@ export default async function AdvisorCommissionsPage() {
                 {commissions.map((comm: any) => {
                   const total = Number(comm.total_commission_amount ?? 0);
                   const paid = Number(comm.amount_paid ?? 0);
-                  const rem = total - paid;
+                  const rem = Number(comm.remaining_commission ?? 0);
                   const isPaid = rem <= 0;
                   return (
                     <TableRow key={comm.id}>
