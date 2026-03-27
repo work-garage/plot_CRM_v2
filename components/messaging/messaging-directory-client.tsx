@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, RefreshCw, Send, Filter, Cake } from "lucide-react";
 import { toast } from "sonner";
@@ -30,14 +30,11 @@ function personKey(p: MessagingPerson) {
 	return `${p.role}:${p.id}`;
 }
 
-function isBirthdayToday(iso: string | null): boolean {
+function isBirthdayOnDate(iso: string | null, todayIsoDate: string): boolean {
 	if (!iso) return false;
 	const t = iso.slice(0, 10);
 	if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return false;
-	const [y, m, d] = t.split("-").map(Number);
-	const bd = new Date(y, m - 1, d);
-	const now = new Date();
-	return bd.getMonth() === now.getMonth() && bd.getDate() === now.getDate();
+	return t.slice(5) === todayIsoDate.slice(5);
 }
 
 function openWhatsApp(phone: string | null, text: string) {
@@ -50,14 +47,42 @@ function openWhatsApp(phone: string | null, text: string) {
 	window.open(`https://wa.me/${wa}?text=${encodeURIComponent(text)}`, "_blank");
 }
 
-function buildPreview(person: MessagingPerson, body: string): string {
-	return fillTemplate(body, {
-		name: person.name,
-		date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long" }),
+function formatDisplayDate(isoDate: string): string {
+	const [year, month, day] = isoDate.split("-").map(Number);
+	return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-IN", {
+		day: "numeric",
+		month: "long",
+		timeZone: "UTC",
 	});
 }
 
-export function MessagingDirectoryClient({ initialPeople }: { initialPeople: MessagingPerson[] }) {
+function buildPreview(person: MessagingPerson, body: string, todayIsoDate: string): string {
+	return fillTemplate(body, {
+		name: person.name,
+		date: formatDisplayDate(todayIsoDate),
+	});
+}
+
+const DEFAULT_TEMPLATE_IDS: Record<ReminderType, string> = {
+	birthday_customer: "bd-1",
+	birthday_advisor: "bda-1",
+	token_expiry: "te-1",
+	agreement_expiry: "ae-1",
+	installment_due: "id-1",
+	bank_statement: "bs-1",
+	balance_plot: "bp-1",
+	crm_followup: "crm-1",
+	calling: "cl-1",
+	other: "ot-1",
+};
+
+export function MessagingDirectoryClient({
+	initialPeople,
+	todayIsoDate,
+}: {
+	initialPeople: MessagingPerson[];
+	todayIsoDate: string;
+}) {
 	const router = useRouter();
 	const [people] = useState(initialPeople);
 	const [query, setQuery] = useState("");
@@ -67,18 +92,23 @@ export function MessagingDirectoryClient({ initialPeople }: { initialPeople: Mes
 	const [selected, setSelected] = useState<Set<string>>(new Set());
 	const [bulkOpen, setBulkOpen] = useState(false);
 	const [previewRole, setPreviewRole] = useState<MessagingPerson["role"]>("customer");
-	const [selectedTemplateIds, setSelectedTemplateIds] = useState<Record<ReminderType, string>>({
-		birthday_customer: getStoredTemplateId("birthday_customer") ?? "bd-1",
-		birthday_advisor: getStoredTemplateId("birthday_advisor") ?? "bda-1",
-		token_expiry: getStoredTemplateId("token_expiry") ?? "te-1",
-		agreement_expiry: getStoredTemplateId("agreement_expiry") ?? "ae-1",
-		installment_due: getStoredTemplateId("installment_due") ?? "id-1",
-		bank_statement: getStoredTemplateId("bank_statement") ?? "bs-1",
-		balance_plot: getStoredTemplateId("balance_plot") ?? "bp-1",
-		crm_followup: getStoredTemplateId("crm_followup") ?? "crm-1",
-		calling: getStoredTemplateId("calling") ?? "cl-1",
-		other: getStoredTemplateId("other") ?? "ot-1",
-	});
+	const [selectedTemplateIds, setSelectedTemplateIds] =
+		useState<Record<ReminderType, string>>(DEFAULT_TEMPLATE_IDS);
+
+	useEffect(() => {
+		setSelectedTemplateIds((current) => {
+			const next = { ...current };
+			let changed = false;
+			(Object.keys(DEFAULT_TEMPLATE_IDS) as ReminderType[]).forEach((type) => {
+				const stored = getStoredTemplateId(type);
+				if (stored && stored !== next[type]) {
+					next[type] = stored;
+					changed = true;
+				}
+			});
+			return changed ? next : current;
+		});
+	}, []);
 
 	const birthdayCustomerGroup = REMINDER_TEMPLATES.find((g) => g.type === "birthday_customer")!;
 	const birthdayAdvisorGroup = REMINDER_TEMPLATES.find((g) => g.type === "birthday_advisor")!;
@@ -89,12 +119,12 @@ export function MessagingDirectoryClient({ initialPeople }: { initialPeople: Mes
 			if (statusTab === "active" && !p.is_active) return false;
 			if (statusTab === "inactive" && p.is_active) return false;
 			if (roleTab !== "all" && p.role !== roleTab) return false;
-			if (birthdayOnly && !isBirthdayToday(p.birth_date)) return false;
+			if (birthdayOnly && !isBirthdayOnDate(p.birth_date, todayIsoDate)) return false;
 			if (!q) return true;
 			const hay = `${p.name} ${p.phone ?? ""} ${p.subtitle ?? ""}`.toLowerCase();
 			return hay.includes(q);
 		});
-	}, [people, query, statusTab, roleTab, birthdayOnly]);
+	}, [people, query, statusTab, roleTab, birthdayOnly, todayIsoDate]);
 
 	const selectedInView = useMemo(() => {
 		return filtered.filter((p) => selected.has(personKey(p)));
@@ -123,7 +153,7 @@ export function MessagingDirectoryClient({ initialPeople }: { initialPeople: Mes
 			toast.error("No template");
 			return;
 		}
-		const msg = buildPreview(p, tmpl.body);
+		const msg = buildPreview(p, tmpl.body, todayIsoDate);
 		openWhatsApp(p.phone, msg);
 	};
 
@@ -347,7 +377,7 @@ export function MessagingDirectoryClient({ initialPeople }: { initialPeople: Mes
 						))}
 					</div>
 					<div className="rounded-xl border border-zinc-200 bg-zinc-50/80 p-3 text-sm text-zinc-800 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-100 whitespace-pre-wrap min-h-[100px]">
-						{buildPreview(samplePerson, previewTemplateBody)}
+						{buildPreview(samplePerson, previewTemplateBody, todayIsoDate)}
 					</div>
 					<p className="text-[10px] text-muted-foreground">
 						Placeholders: [name], [date], [company], [company_phone]

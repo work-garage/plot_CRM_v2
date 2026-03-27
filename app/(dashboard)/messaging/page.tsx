@@ -3,5 +3,6 @@ import { MessagingDirectoryClient } from "@/components/messaging/messaging-direc
 
 export default async function MessagingPage() {
 	const people = await getMessagingDirectory();
-	return <MessagingDirectoryClient initialPeople={people} />;
+	const todayIsoDate = new Date().toISOString().slice(0, 10);
+	return <MessagingDirectoryClient initialPeople={people} todayIsoDate={todayIsoDate} />;
 }
