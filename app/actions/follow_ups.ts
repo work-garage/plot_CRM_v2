@@ -21,19 +21,41 @@ export type FollowUpPayload = {
 };
 
 function deriveLeadStatus(data: FollowUpPayload, currentStatus: string): string {
-  if (data.customer_mood === "Not Interested") return LEAD_STATUS.closedLost;
-  if (currentStatus === LEAD_STATUS.closedWon || currentStatus === LEAD_STATUS.closedLost) return currentStatus;
-  if (data.site_visit_done) return LEAD_STATUS.siteVisitDone;
-  if (data.whatsapp_done && data.call_done && data.next_follow_up_date) {
+  // Terminal states - never change once reached
+  if (currentStatus === LEAD_STATUS.closedWon || currentStatus === LEAD_STATUS.closedLost) {
+    return currentStatus;
+  }
+
+  // If customer explicitly not interested, mark as lost
+  if (data.customer_mood === "Not Interested") {
+    return LEAD_STATUS.closedLost;
+  }
+
+  // Progressive states - move forward only, don't regress
+  if (data.site_visit_done) {
+    return LEAD_STATUS.siteVisitDone;
+  }
+
+  // Both contact methods done means contact complete
+  if (data.whatsapp_done && data.call_done) {
+    // If already at site visit or higher, don't regress
+    if (currentStatus === LEAD_STATUS.siteVisitDone) {
+      return currentStatus;
+    }
     return LEAD_STATUS.contactDone;
   }
+
+  // At least one contact method done
   if (data.whatsapp_done || data.call_done) {
+    // If already at contact done or higher, don't regress
     if (currentStatus === LEAD_STATUS.contactDone || currentStatus === LEAD_STATUS.siteVisitDone) {
       return currentStatus;
     }
     return LEAD_STATUS.contactPending;
   }
-  return currentStatus;
+
+  // No progress yet - keep current or default
+  return currentStatus || LEAD_STATUS.newLead;
 }
 
 export async function addFollowUp(
@@ -56,9 +78,9 @@ export async function addFollowUp(
   ]);
 
   const cumulativeState = {
-    whatsapp_done: Boolean(data.whatsapp_done || (existingFollowUps ?? []).some((row: any) => row.whatsapp_done)),
-    call_done: Boolean(data.call_done || (existingFollowUps ?? []).some((row: any) => row.call_done)),
-    site_visit_done: Boolean(data.site_visit_done || (existingFollowUps ?? []).some((row: any) => row.site_visit_done)),
+    whatsapp_done: data.whatsapp_done || (existingFollowUps ?? []).some((row) => row.whatsapp_done),
+    call_done: data.call_done || (existingFollowUps ?? []).some((row) => row.call_done),
+    site_visit_done: data.site_visit_done || (existingFollowUps ?? []).some((row) => row.site_visit_done),
   };
 
   const payload = {
@@ -91,7 +113,15 @@ export async function addFollowUp(
       updatePayload.is_active = false;
       updatePayload.lost_at = new Date().toISOString();
     }
-    await supabase.from("customers").update(updatePayload).eq("id", customerId);
+    const { error: custUpdateErr } = await supabase
+      .from("customers")
+      .update(updatePayload)
+      .eq("id", customerId);
+    
+    if (custUpdateErr) {
+      console.error("Failed to update customer:", custUpdateErr);
+      return { success: false, error: "Failed to update customer status" };
+    }
   }
 
   revalidatePath("/enquiries");

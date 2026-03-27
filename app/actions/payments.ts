@@ -42,7 +42,7 @@ export async function createPayment(values: PaymentFormValues): Promise<ActionRe
     .eq("is_confirmed", true);
   if (paidErr) return { success: false, error: paidErr.message };
 
-  const alreadyConfirmed = (paidRows ?? []).reduce((sum, payment: any) => sum + Number(payment.amount ?? 0), 0);
+  const alreadyConfirmed = (paidRows ?? []).reduce((sum, payment) => sum + Number(payment.amount ?? 0), 0);
   const nextConfirmed = alreadyConfirmed + (parsed.data.is_confirmed ? Number(parsed.data.amount ?? 0) : 0);
   const saleTotal = Number(saleRow.total_sale_amount ?? 0);
   if (nextConfirmed > saleTotal + 0.0001) {
@@ -127,7 +127,7 @@ export async function getPayments(filters?: PaymentsFilter) {
   const supabase = await createClient();
   if (!supabase) return [];
 
-  const { role, advisorId } = await getScopeContext(supabase as any);
+  const { role, advisorId } = await getScopeContext(supabase);
 
   let query = supabase
     .from("payments")

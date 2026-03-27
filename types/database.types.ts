@@ -32,6 +32,8 @@ export type Advisor = {
   name: string;
   code: string;
   phone: string;
+  email?: string;
+  auth_user_id?: string;
   address?: string;
   birth_date?: string;
   commission_token?: number;

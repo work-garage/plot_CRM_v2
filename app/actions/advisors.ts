@@ -42,7 +42,10 @@ async function syncAdvisorBirthdayReminder(
   const nextDate = advisor.birth_date ? getNextBirthdayDate(advisor.birth_date) : null;
   if (!nextDate) {
     if (existing?.id) {
-      await supabase.from("reminders").delete().eq("id", existing.id);
+      const { error: deleteErr } = await supabase.from("reminders").delete().eq("id", existing.id);
+      if (deleteErr) {
+        console.error("Failed to delete reminder:", deleteErr);
+      }
     }
     return;
   }

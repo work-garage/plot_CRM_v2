@@ -55,9 +55,7 @@ export function ProjectForm({ mode, initialData }: ProjectFormProps) {
 	const [statusText, setStatusText] = useState("");
 
 	const form = useForm<ProjectFormValues>({
-		// `zodResolver` infers optional inputs due to `.default(...)`.
-		// Cast to `any` to satisfy RHF generic without changing runtime behavior.
-		resolver: zodResolver(projectSchema) as any,
+		resolver: zodResolver(projectSchema),
 		defaultValues: {
 			name: initialData?.name ?? "",
 			location: initialData?.location ?? "",

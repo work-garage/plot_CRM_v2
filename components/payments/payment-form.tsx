@@ -47,16 +47,11 @@ export function PaymentForm({ sales, initialSaleId }: PaymentFormProps) {
   const [shareSaleId, setShareSaleId] = useState<string | null>(null);
   const [shareCustomerPhone, setShareCustomerPhone] = useState<string | null>(null);
   const [shareCustomerName, setShareCustomerName] = useState<string | null>(null);
-  const [draftId] = useState(() =>
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : String(Date.now())
-  );
 
   const selectedSale = sales.find(s => s.id === initialSaleId);
 
   const form = useForm<PaymentFormValues>({
-    resolver: zodResolver(paymentSchema) as any,
+    resolver: zodResolver(paymentSchema),
     defaultValues: {
       sale_id: initialSaleId ?? "",
       customer_id: selectedSale?.customer_id ?? "",

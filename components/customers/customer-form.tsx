@@ -29,11 +29,12 @@ import {
 } from "@/components/ui";
 import { customerSchema, type CustomerFormValues } from "@/lib/validations/customer";
 import { createCustomer, updateCustomer } from "@/app/actions/customers";
+import type { Advisor, Customer } from "@/types/database.types";
 
 interface CustomerFormProps {
   mode: "create" | "edit";
-  initialData?: any;
-  advisors: any[];
+  initialData?: Partial<Customer>;
+  advisors: Advisor[];
   redirectTo?: string;
 }
 
@@ -49,7 +50,7 @@ export function CustomerForm({
   const [statusText, setStatusText] = useState("");
 
   const form = useForm<CustomerFormValues>({
-    resolver: zodResolver(customerSchema) as any,
+    resolver: zodResolver(customerSchema),
     defaultValues: {
       name: initialData?.name ?? "",
       phone: initialData?.phone ?? "",

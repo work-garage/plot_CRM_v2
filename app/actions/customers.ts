@@ -95,7 +95,7 @@ export async function createCustomer(
     return { success: false, error: "Unauthorized" };
   }
 
-  const { role, advisorId } = await getScopeContext(supabase as any);
+  const { role, advisorId } = await getScopeContext(supabase);
   const resolvedAdvisorId = role === "advisor" ? advisorId ?? null : parsed.data.advisor_id ?? null;
 
   if (role === "advisor" && !resolvedAdvisorId) {
@@ -156,7 +156,7 @@ export async function updateCustomer(
     return { success: false, error: "Unauthorized" };
   }
 
-  const { role, advisorId } = await getScopeContext(supabase as any);
+  const { role, advisorId } = await getScopeContext(supabase);
 
   if (role === "advisor" && !advisorId) {
     return { success: false, error: "Advisor context missing" };
@@ -215,7 +215,7 @@ export async function getCustomers(options?: {
   } = await supabase.auth.getUser();
   if (userErr || !user) return [];
 
-  const { role, advisorId } = await getScopeContext(supabase as any);
+  const { role, advisorId } = await getScopeContext(supabase);
 
   let query = supabase
     .from("customers")
@@ -256,7 +256,7 @@ export async function getCustomerById(id: string) {
 
   if (userErr || !user) return null;
 
-  const { role, advisorId } = await getScopeContext(supabase as any);
+  const { role, advisorId } = await getScopeContext(supabase);
 
   let query = supabase
     .from("customers")
@@ -284,7 +284,7 @@ export async function getSaleCandidates() {
   } = await supabase.auth.getUser();
   if (userErr || !user) return [];
 
-  const { role, advisorId } = await getScopeContext(supabase as any);
+  const { role, advisorId } = await getScopeContext(supabase);
 
   let query = supabase
     .from("customers")

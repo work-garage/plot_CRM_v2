@@ -78,8 +78,13 @@ export async function getCommissions() {
 	);
 	if (!errWithExtra) return dataWithExtra || [];
 
-	const msg = (errWithExtra.message || "").toLowerCase();
-	if (!msg.includes("extra_paid_amount")) throw new Error(errWithExtra.message);
+	// Check for missing column error using PostgreSQL error codes
+	// 42703 = undefined_column, PGRST204 = PostgREST column not found
+	if (errWithExtra.code !== '42703' && errWithExtra.code !== 'PGRST204') {
+		throw new Error(errWithExtra.message);
+	}
+
+	// Fallback: query without extra_paid_amount column
 
 	// Fallback: DB doesn't have extra_paid_amount column yet — use baseSelect
 	let fallbackQuery = supabase.from("advisor_commissions").select(baseSelect);
@@ -87,10 +92,10 @@ export async function getCommissions() {
 
 	const { data, error } = await fallbackQuery.order("created_at", { ascending: false });
 	if (error) throw new Error(error.message);
-	return (data || []).map((row: any) => ({
+	return (data || []).map((row): CommissionWithPayments => ({
 		...row,
 		advisor_commission_payments: (row.advisor_commission_payments ?? []).map(
-			(p: any) => ({ ...p, extra_paid_amount: 0 })
+			(p): AdvisorCommissionPayment => ({ ...p, extra_paid_amount: p.extra_paid_amount ?? 0 })
 		),
 	}));
 }

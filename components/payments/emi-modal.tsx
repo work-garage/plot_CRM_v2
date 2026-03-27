@@ -43,6 +43,10 @@ export function EmiModal({ open, onOpenChange }: EmiModalProps) {
 			setLoading(true);
 			getEmiSales()
 				.then(setSales)
+				.catch((error) => {
+					console.error("Failed to load EMI sales:", error);
+					setSales([]);
+				})
 				.finally(() => setLoading(false));
 		}
 	}, [open]);

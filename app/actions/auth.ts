@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
+import type { Advisor } from "@/types/database.types";
 
 export type AuthResult = { success: boolean; error?: string };
 
@@ -43,7 +44,6 @@ export async function signInWithEmailOrPhone(
 
 		if (!signInErr) {
 			redirect("/dashboard");
-			return { success: true };
 		}
 
 		// Fallback: if sign-in failed, ensure auth user exists (admin auth).
@@ -58,7 +58,7 @@ export async function signInWithEmailOrPhone(
 			.select("id, email, phone, auth_user_id, is_active")
 			.eq("is_active", true);
 
-		const match = advisors?.find((a: any) => {
+		const match = advisors?.find((a: Advisor) => {
 			const p = (a.phone || "").replace(/\D/g, "").slice(-10);
 			return p === last10;
 		});
@@ -99,7 +99,6 @@ export async function signInWithEmailOrPhone(
 
 		if (finalErr) return { success: false, error: "Invalid credentials." };
 		redirect("/dashboard");
-		return { success: true };
 	}
 
 	const { error } = await supabase.auth.signInWithPassword({

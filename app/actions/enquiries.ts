@@ -75,7 +75,7 @@ export async function getEnquiryCustomers(): Promise<EnquiryRow[]> {
   const supabase = await createClient();
   if (!supabase) return [];
 
-  const { user, role, advisorId } = await getScopeContext(supabase as any);
+  const { user, role, advisorId } = await getScopeContext(supabase);
   if (!user) return [];
 
   let query = supabase
@@ -157,10 +157,17 @@ export async function createEnquiryCustomer(
     return { success: false, error: parsed.error.issues[0]?.message || "Validation failed" };
   }
 
+  // Validate budget range
+  const budgetMin = Number(parsed.data.budget_min ?? 0);
+  const budgetMax = Number(parsed.data.budget_max ?? 0);
+  if (budgetMax > 0 && budgetMin > budgetMax) {
+    return { success: false, error: "Minimum budget cannot be greater than maximum budget" };
+  }
+
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "Database connection failed" };
 
-  const { user, role, advisorId } = await getScopeContext(supabase as any);
+  const { user, role, advisorId } = await getScopeContext(supabase);
   if (!user) return { success: false, error: "Unauthorized" };
 
   const resolvedAdvisorId = role === "advisor" ? advisorId : parsed.data.advisor_id ?? null;
@@ -296,7 +303,7 @@ export async function upgradeEnquiryToCustomer(opts: { enquiryId: string }): Pro
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "Database connection failed" };
 
-  const { user, role } = await getScopeContext(supabase as any);
+  const { user, role } = await getScopeContext(supabase);
   if (!user) return { success: false, error: "Unauthorized" };
   if (role === "advisor") return { success: false, error: "Only admins can close an enquiry as won." };
 
@@ -323,7 +330,7 @@ export async function markLeadAsLost(enquiryId: string): Promise<ActionResponse>
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "Database connection failed" };
 
-  const { user, role } = await getScopeContext(supabase as any);
+  const { user, role } = await getScopeContext(supabase);
   if (!user) return { success: false, error: "Unauthorized" };
   if (role === "advisor") return { success: false, error: "Only admins can close an enquiry as lost." };
 

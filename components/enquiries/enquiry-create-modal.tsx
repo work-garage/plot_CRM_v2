@@ -54,7 +54,7 @@ export function EnquiryCreateModal({
 	const router = useRouter();
 	const [saving, setSaving] = useState(false);
 
-	const empty: EnquiryCustomerFormValues = {
+	const empty = useMemo<EnquiryCustomerFormValues>(() => ({
 		name: "", phone: "", alternate_phone: "",
 		email: "", city: "", address: "",
 		birth_date: null, project_id: null, category: "General",
@@ -66,13 +66,13 @@ export function EnquiryCreateModal({
 		bhk_size: "",
 		advisor_id: null,
 		source_advisor_id: null,
-	};
+	}), []);
+	
 	const [form, setForm] = useState<EnquiryCustomerFormValues>(empty);
 
 	useEffect(() => {
 		if (open) setForm(empty);
-	// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [open]);
+	}, [open, empty]);
 
 	const set = (k: keyof EnquiryCustomerFormValues, v: any) =>
 		setForm((f) => ({ ...f, [k]: v }));

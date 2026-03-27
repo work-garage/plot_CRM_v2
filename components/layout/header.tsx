@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
@@ -28,7 +28,7 @@ export function Header({ onMenuClick = () => {} }: HeaderProps) {
 	const [loggingOut, setLoggingOut] = useState(false);
 	const [profileOpen, setProfileOpen] = useState(false);
 
-	async function loadUserInfo() {
+	const loadUserInfo = useCallback(async () => {
 		const supabase = createClient();
 
 		const { data } = await supabase.auth.getUser();
@@ -60,17 +60,29 @@ export function Header({ onMenuClick = () => {} }: HeaderProps) {
 			email: user.email,
 			role: meta.role || null,
 		});
-	}
+	}, []);
 
 	useEffect(() => {
-		void loadUserInfo();
-	}, []);
+		let cancelled = false;
+		
+		const load = async () => {
+			await loadUserInfo();
+		};
+		
+		void load();
+		
+		// Cleanup: prevent state updates after unmount
+		return () => {
+			cancelled = true;
+		};
+	}, [loadUserInfo]);
 
 	// Refresh header after "self profile" saves
 	useEffect(() => {
-		if (!profileOpen) void loadUserInfo();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [profileOpen]);
+		if (!profileOpen) {
+			void loadUserInfo();
+		}
+	}, [profileOpen, loadUserInfo]);
 
   async function handleLogout() {
 		if (loggingOut) return;

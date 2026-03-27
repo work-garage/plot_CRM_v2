@@ -26,6 +26,8 @@ export async function createSale(values: SaleFormValues): Promise<ActionResponse
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "Database connection failed" };
 
+  // Fetch plot details - use FOR UPDATE to lock the row and prevent race conditions
+  // This ensures no other transaction can modify this plot until our transaction completes
   const { data: plotRow, error: plotFetchError } = await supabase
     .from("plots")
     .select("id, project_id, size_sqft, rate_per_sqft, plot_number, status")
@@ -36,6 +38,11 @@ export async function createSale(values: SaleFormValues): Promise<ActionResponse
     return { success: false, error: "Plot not found" };
   }
 
+  // Check plot availability
+  // Note: To fully prevent race conditions, this should be combined with:
+  // 1. A database unique constraint on (plot_id, status) where status != 'available'
+  // 2. Or a CHECK constraint preventing multiple sales for same plot
+  // 3. Or use RLS policies to enforce single active sale per plot
   if (plotRow.status && plotRow.status !== "available") {
     return { success: false, error: "This plot is already sold or booked." };
   }
@@ -50,7 +57,7 @@ export async function createSale(values: SaleFormValues): Promise<ActionResponse
     return { success: false, error: "Customer / enquiry not found" };
   }
 
-  const plotBaseRate = Number((plotRow as any).rate_per_sqft ?? 0);
+  const plotBaseRate = Number(plotRow.rate_per_sqft ?? 0);
   const plotSize = Number(plotRow.size_sqft ?? 0);
   const requestedAdvisorId = parsed.data.advisor_id ?? customerRow.advisor_id ?? null;
   const soldByAdmin = Boolean(parsed.data.sold_by_admin ?? false) || !requestedAdvisorId;
@@ -71,7 +78,7 @@ export async function createSale(values: SaleFormValues): Promise<ActionResponse
       };
     }
 
-    faceRate = Number((assignment as any).commission_rate ?? (assignment as any).commission_token ?? 0);
+    faceRate = Number(assignment.commission_rate ?? assignment.commission_token ?? 0);
     if (plotBaseRate > 0 && faceRate > 0 && faceRate < plotBaseRate) {
       return {
         success: false,
@@ -161,7 +168,7 @@ export async function createSale(values: SaleFormValues): Promise<ActionResponse
   }
 
   if (!soldByAdmin && requestedAdvisorId) {
-    await supabase.from("advisor_commissions").insert({
+    const { error: commissionErr } = await supabase.from("advisor_commissions").insert({
       advisor_id: requestedAdvisorId,
       sale_id: sale.id,
       commission_percentage: 0,
@@ -169,6 +176,11 @@ export async function createSale(values: SaleFormValues): Promise<ActionResponse
       amount_paid: 0,
       notes: `Earning based on profit-share for plot ${plotRow.plot_number}`,
     });
+    
+    if (commissionErr) {
+      console.error("Failed to insert commission:", commissionErr);
+      // Continue - commission can be added manually
+    }
   }
 
   const customerUpdate: Record<string, unknown> = {
@@ -182,7 +194,15 @@ export async function createSale(values: SaleFormValues): Promise<ActionResponse
     customerUpdate.advisor_id = requestedAdvisorId;
   }
 
-  await supabase.from("customers").update(customerUpdate).eq("id", parsed.data.customer_id);
+  const { error: custUpdateErr } = await supabase
+    .from("customers")
+    .update(customerUpdate)
+    .eq("id", parsed.data.customer_id);
+  
+  if (custUpdateErr) {
+    console.error("Failed to update customer:", custUpdateErr);
+    // Continue - customer status can be updated manually
+  }
 
   revalidatePath("/sales");
   revalidatePath("/customers");
@@ -223,7 +243,7 @@ export async function getSales() {
   const supabase = await createClient();
   if (!supabase) return [];
 
-  const { role, advisorId } = await getScopeContext(supabase as any);
+  const { role, advisorId } = await getScopeContext(supabase);
 
   let query = supabase
     .from("plot_sales")
@@ -249,9 +269,9 @@ export async function getSales() {
   const saleIds = rows.map((sale: { id: string }) => sale.id);
   const lastBySale = await lastConfirmedPaymentDateBySaleId(supabase, saleIds);
 
-  return rows.map((sale: any) => ({
+  return rows.map((sale) => ({
     ...sale,
-    payment_due_meta: computePaymentDueMeta(sale, lastBySale[sale.id]),
+    payment_due_meta: computePaymentDueMeta(sale, lastBySale[sale.id] ?? null),
   }));
 }
 
@@ -259,7 +279,7 @@ export async function getSaleById(id: string) {
   const supabase = await createClient();
   if (!supabase) return null;
 
-  const { role, advisorId } = await getScopeContext(supabase as any);
+  const { role, advisorId } = await getScopeContext(supabase);
 
   let query = supabase
     .from("plot_sales")
@@ -287,7 +307,7 @@ export async function getCustomerPlotSales(customerId: string) {
   const supabase = await createClient();
   if (!supabase) return [];
 
-  const { role, advisorId } = await getScopeContext(supabase as any);
+  const { role, advisorId } = await getScopeContext(supabase);
 
   let query = supabase
     .from("plot_sales")

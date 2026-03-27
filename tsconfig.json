@@ -18,6 +18,9 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
+    // Path alias configuration
+    // Note: Maps @/* to project root directory (non-standard but functional)
+    // Standard approach would map @/* to ./src/* but this project has no src/ folder
     "baseUrl": ".",
     "paths": {
       "@/*": [

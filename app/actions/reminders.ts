@@ -15,7 +15,7 @@ export type ActionResponse = {
 };
 
 async function getAuthContext(supabase: NonNullable<Awaited<ReturnType<typeof createClient>>>) {
-	const { user, role, advisorId } = await getScopeContext(supabase as any);
+	const { user, role, advisorId } = await getScopeContext(supabase);
 	return { user, role, advisorId: advisorId ?? undefined };
 }
 

@@ -27,7 +27,7 @@ export async function getReportStats(filters?: ReportFilters) {
 
   const start = filters?.startDate ? toDateOnly(filters.startDate) : undefined;
   const end = filters?.endDate ? toDateOnly(filters.endDate) : undefined;
-  const { role, advisorId } = await getScopeContext(supabase as any);
+  const { role, advisorId } = await getScopeContext(supabase);
 
   let salesQuery = supabase
     .from("plot_sales")
@@ -83,12 +83,15 @@ export async function getReportStats(filters?: ReportFilters) {
   }
   const { data: advisors } = await advisorsQuery;
 
+  // Try to fetch commission payments with extra_paid_amount field
+  // If column doesn't exist, fallback to empty array
   const { data: commissionPayments, error: commissionPaymentsErr } = await supabase
     .from("advisor_commission_payments")
     .select("extra_paid_amount, paid_date");
 
+  // If error suggests missing column, use empty array, otherwise throw
   const safeCommissionPayments =
-    commissionPaymentsErr && (commissionPaymentsErr.message || "").toLowerCase().includes("extra_paid_amount")
+    commissionPaymentsErr && (commissionPaymentsErr.code === '42703' || commissionPaymentsErr.code === 'PGRST204')
       ? []
       : commissionPayments ?? [];
 
@@ -256,7 +259,7 @@ export async function getProjectAnalytics(projectId: string, filters?: ReportFil
     .select("id, plot_number, status, size_sqft, rate_per_sqft")
     .eq("project_id", projectId);
 
-  const { role, advisorId } = await getScopeContext(supabase as any);
+  const { role, advisorId } = await getScopeContext(supabase);
 
   const plotIds = (plots ?? []).map((plot: any) => plot.id);
   let salesQuery = supabase

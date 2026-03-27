@@ -10,6 +10,8 @@ export async function middleware(request: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey || supabaseUrl === 'your_supabase_url_here') {
+    console.error('⚠️  Middleware disabled: Missing Supabase environment variables');
+    console.error('Required: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY');
     return NextResponse.next();
   }
 
