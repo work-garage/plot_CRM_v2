@@ -25,7 +25,7 @@ export interface ReminderTemplateGroup {
 
 const COMPANY_SIGNATURE = "\n\nRegards,\n[company]\nContact: [company_phone]";
 const TEMPLATE_STORAGE_KEY = "estateflow_crm_reminder_templates";
-const LEGACY_TEMPLATE_STORAGE_KEY = "sinfra_reminder_templates";
+const LEGACY_TEMPLATE_STORAGE_KEY = "estateflow_reminder_templates";
 
 export const REMINDER_TEMPLATES: ReminderTemplateGroup[] = [
 	{

@@ -1,4 +1,4 @@
-# MG Infra CRM (Estate Management + CRM)
+# CRM (Estate Management + CRM)
 
 This is a **Next.js App Router + Supabase** CRM for managing:
 - Projects & plots

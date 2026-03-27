@@ -28,7 +28,7 @@ export const PAYMENT_MESSAGE_TEMPLATES: PaymentMessageTemplate[] = [
 ];
 
 const STORAGE_PREFIX = "estateflow_crm_payment_template_";
-const LEGACY_STORAGE_PREFIX = "sinfra_payment_template_";
+const LEGACY_STORAGE_PREFIX = "estateflow_payment_template_";
 
 export function getStoredPaymentTemplateId(): PaymentTemplateId {
 	if (typeof window === "undefined") return "payment_due";

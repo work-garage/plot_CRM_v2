@@ -1,4 +1,4 @@
--- Migration: Fix schema mismatches for MG Infra CRM
+-- Migration: Fix schema mismatches for EstateFlow CRM
 -- Run this against your Supabase project
 
 -- =============================================

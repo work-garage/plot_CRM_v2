@@ -1,4 +1,4 @@
-# S-Infra CRM - Features Documentation
+# EstateFlow CRM - Features Documentation
 
 ## UI Pages & Routes
 

@@ -1,4 +1,4 @@
-# MG Infra CRM — System Audit Report
+# CRM — System Audit Report
 
 **Date:** March 2025  
 **Scope:** Full project scan, schema, routes, components, business logic
@@ -92,7 +92,7 @@ advisor_earning = profit × ratio
 3. Option B: Custom credentials table — `advisor_credentials(advisor_id, phone, password_hash)`; custom login API.
 
 **Recommended:** Supabase Auth. On advisor create:
-- Create auth user with `email: advisor_phone@mginfra.local` (or similar), `password: phone` (or admin-set).
+- Create auth user with `email: advisor_phone@crm.local` (or similar), `password: phone` (or admin-set).
 - Add `auth_user_id` to `advisors` table.
 - Advisor login uses phone (as identifier) + password.
 - Middleware: check `auth.role` or `user_metadata.role` for advisor vs admin.
