@@ -132,10 +132,12 @@ export function EnquiryBookingDialog({
         const status = String(plot.status ?? "available");
         if (status === "available") acc.available += 1;
         else if (status === "sold") acc.sold += 1;
+        else if (status === "token") acc.token += 1;
+        else if (status === "agreement") acc.agreement += 1;
         else acc.blocked += 1;
         return acc;
       },
-      { available: 0, sold: 0, blocked: 0 },
+      { available: 0, sold: 0, token: 0, agreement: 0, blocked: 0 },
     );
   }, [plots]);
 
@@ -198,7 +200,7 @@ export function EnquiryBookingDialog({
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500">Plot Matrix</p>
                     <p className="mt-1 text-sm text-zinc-700">
-                      Plots are shown in natural plot-number order. Available plots stay green, sold plots stay red.
+                      Plots are shown in natural plot-number order. Available stays green, token stays yellow, agreement stays blue, and sold stays red.
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -208,9 +210,19 @@ export function EnquiryBookingDialog({
                     <Badge variant="outline" className="border-rose-200 bg-rose-50 text-rose-700">
                       {plotCounts.sold} sold
                     </Badge>
-                    {plotCounts.blocked > 0 ? (
+                    {plotCounts.token > 0 ? (
                       <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
-                        {plotCounts.blocked} booked
+                        {plotCounts.token} token
+                      </Badge>
+                    ) : null}
+                    {plotCounts.agreement > 0 ? (
+                      <Badge variant="outline" className="border-sky-200 bg-sky-50 text-sky-700">
+                        {plotCounts.agreement} agreement
+                      </Badge>
+                    ) : null}
+                    {plotCounts.blocked > 0 ? (
+                      <Badge variant="outline" className="border-zinc-300 bg-zinc-50 text-zinc-700">
+                        {plotCounts.blocked} occupied
                       </Badge>
                     ) : null}
                     <Badge variant="outline" className="border-zinc-300 bg-zinc-50 text-zinc-700">
@@ -230,7 +242,11 @@ export function EnquiryBookingDialog({
                   </span>
                   <span className="inline-flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full bg-amber-500" />
-                    Token / Agreement
+                    Token
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-sky-500" />
+                    Agreement
                   </span>
                 </div>
 
@@ -245,11 +261,19 @@ export function EnquiryBookingDialog({
                     const statusTone =
                       status === "sold"
                         ? "border-rose-300 bg-rose-100 text-rose-900"
+                        : status === "agreement"
+                          ? "border-sky-300 bg-sky-100 text-sky-900"
                         : status === "available"
                           ? "border-emerald-300 bg-emerald-100 text-emerald-900 hover:bg-emerald-200"
                           : "border-amber-300 bg-amber-100 text-amber-900";
                     const statusLabel =
-                      status === "sold" ? "Sold" : status === "available" ? "Available" : "Booked";
+                      status === "sold"
+                        ? "Sold"
+                        : status === "agreement"
+                          ? "Agreement"
+                          : status === "available"
+                            ? "Available"
+                            : "Token";
                     return (
                       <button
                         key={plot.id}

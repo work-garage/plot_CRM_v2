@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button, Input, Textarea, Badge } from "@/components/ui";
 import { updatePlot, deletePlot } from "@/app/actions/plots";
 import { SaleBookingDialog } from "@/components/sales/sale-booking-dialog";
+import { PLOT_STATUS_LABELS } from "@/lib/utils/plot-status";
 
 interface PlotForGrid {
 	id: string;
@@ -217,7 +218,7 @@ export function PlotLayoutGrid({
 
 							<div className="flex flex-wrap gap-2 mb-3">
 								<Badge variant="secondary" className="capitalize">
-									{(selectedPlot.status || "available") as string}
+									{PLOT_STATUS_LABELS[(selectedPlot.status as StatusKey) || "available"]}
 								</Badge>
 								<Button
 									size="sm"
@@ -486,4 +487,3 @@ function ModalField({
 		</div>
 	);
 }
-

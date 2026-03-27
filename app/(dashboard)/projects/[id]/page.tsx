@@ -56,7 +56,7 @@ export default async function ProjectDetailPage({
 		notFound();
 	}
 
-	const { project, plotCounts, totalRevenue, recentSales } = data;
+	const { project, plotCounts, totalRevenue, recentSales, salesCount } = data;
 
 	const plannedCount = Number(project.total_plots_count ?? 0);
 	const plotByNumber = new Map(plots.map((p) => [p.plot_number, p]));
@@ -243,7 +243,7 @@ export default async function ProjectDetailPage({
 						<CardContent>
 							<p className="text-2xl font-bold">{formatCurrency(totalRevenue)}</p>
 							<p className="text-xs text-zinc-400 mt-1">
-								From {recentSales.length} sale(s)
+								From {salesCount} sale(s)
 							</p>
 						</CardContent>
 					</Card>
@@ -252,15 +252,18 @@ export default async function ProjectDetailPage({
 				<Card>
 					<CardHeader className="pb-2">
 						<CardTitle className="text-sm font-medium text-zinc-500">
-							Plot Capacity
+							Inventory Used
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
 						<p className="text-2xl font-bold">
-							{plotCounts.total}{" "}
+							{plotCounts.occupied}{" "}
 							<span className="text-base font-normal text-zinc-400">
-								/ {project.total_plots_count} planned
+								/ {plotCounts.total} created
 							</span>
+						</p>
+						<p className="text-xs text-zinc-400 mt-1">
+							{project.total_plots_count} planned total plots
 						</p>
 					</CardContent>
 				</Card>

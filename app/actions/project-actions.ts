@@ -8,6 +8,7 @@ import {
 	type ProjectFormValues,
 } from "@/lib/validations/project";
 import { isClosedLostStatus, isClosedWonStatus } from "@/lib/constants/lead-status";
+import { isPlotOccupied, resolvePlotStatus } from "@/lib/utils/plot-status";
 
 export type ActionResponse = {
 	success: boolean;
@@ -177,6 +178,7 @@ export type PlotStatusCounts = {
 	token: number;
 	agreement: number;
 	sold: number;
+	occupied: number;
 	total: number;
 };
 
@@ -193,6 +195,7 @@ export type ProjectWithStats = {
 		token_date: string | null;
 		sale_phase: string;
 	}>;
+	salesCount: number;
 	enquiryCount: number;
 	wonCount: number;
 	lostCount: number;
@@ -224,25 +227,48 @@ export async function getProjectWithStats(
 		.select("id, status")
 		.eq("project_id", id);
 
+	const plotIds = plots?.map((p) => p.id) ?? [];
+	const { data: activeSales } = plotIds.length
+		? await supabase
+				.from("plot_sales")
+				.select("plot_id, sale_phase, is_cancelled, created_at")
+				.in("plot_id", plotIds)
+				.eq("is_cancelled", false)
+				.order("created_at", { ascending: false })
+		: { data: [] as any[] };
+
+	const saleByPlotId = new Map<string, any>();
+	for (const sale of activeSales ?? []) {
+		if (!saleByPlotId.has(sale.plot_id)) {
+			saleByPlotId.set(sale.plot_id, sale);
+		}
+	}
+
 	const plotCounts: PlotStatusCounts = {
 		available: 0,
 		token: 0,
 		agreement: 0,
 		sold: 0,
+		occupied: 0,
 		total: plots?.length ?? 0,
 	};
 
 	plots?.forEach((plot) => {
-		if (plot.status && plot.status in plotCounts) {
-			plotCounts[plot.status as keyof Omit<PlotStatusCounts, "total">]++;
+		const resolvedStatus = resolvePlotStatus({
+			plotStatus: plot.status,
+			salePhase: saleByPlotId.get(plot.id)?.sale_phase,
+			isCancelled: saleByPlotId.get(plot.id)?.is_cancelled,
+		});
+		plotCounts[resolvedStatus]++;
+		if (isPlotOccupied(resolvedStatus)) {
+			plotCounts.occupied++;
 		}
 	});
 
 	// Fetch sales for this project's plots
-	const plotIds = plots?.map((p) => p.id) ?? [];
-
 	let totalRevenue = 0;
 	let recentSales: ProjectWithStats["recentSales"] = [];
+	let salesCount = 0;
 
 	let advisorId: string | null = null;
 	if (role === "advisor") {
@@ -282,6 +308,7 @@ export async function getProjectWithStats(
 		const { data: sales } = await salesQuery;
 
 		if (sales) {
+			salesCount = sales.length;
 			totalRevenue = sales.reduce(
 				(sum, s) => sum + Number(s.total_sale_amount ?? 0),
 				0
@@ -320,6 +347,7 @@ export async function getProjectWithStats(
 		plotCounts,
 		totalRevenue,
 		recentSales,
+		salesCount,
 		enquiryCount,
 		wonCount,
 		lostCount,
@@ -344,7 +372,7 @@ export async function getProjectsWithPlotCounts() {
 
 	const { data: allPlots } = await supabase
 		.from("plots")
-		.select("project_id, status")
+		.select("id, project_id, status")
 		.in("project_id", projectIds);
 
 	const plotCountsMap = new Map<string, PlotStatusCounts>();
@@ -355,16 +383,40 @@ export async function getProjectsWithPlotCounts() {
 			token: 0,
 			agreement: 0,
 			sold: 0,
+			occupied: 0,
 			total: 0,
 		});
 	});
+
+	const plotIds = (allPlots ?? []).map((plot) => plot.id);
+	const { data: allSales } = plotIds.length
+		? await supabase
+				.from("plot_sales")
+				.select("plot_id, sale_phase, is_cancelled, created_at")
+				.in("plot_id", plotIds)
+				.eq("is_cancelled", false)
+				.order("created_at", { ascending: false })
+		: { data: [] as any[] };
+
+	const saleByPlotId = new Map<string, any>();
+	for (const sale of allSales ?? []) {
+		if (!saleByPlotId.has(sale.plot_id)) {
+			saleByPlotId.set(sale.plot_id, sale);
+		}
+	}
 
 	allPlots?.forEach((plot) => {
 		const counts = plotCountsMap.get(plot.project_id);
 		if (counts) {
 			counts.total++;
-			if (plot.status && plot.status in counts) {
-				counts[plot.status as keyof Omit<PlotStatusCounts, "total">]++;
+			const resolvedStatus = resolvePlotStatus({
+				plotStatus: plot.status,
+				salePhase: saleByPlotId.get(plot.id)?.sale_phase,
+				isCancelled: saleByPlotId.get(plot.id)?.is_cancelled,
+			});
+			counts[resolvedStatus]++;
+			if (isPlotOccupied(resolvedStatus)) {
+				counts.occupied++;
 			}
 		}
 	});
@@ -376,6 +428,7 @@ export async function getProjectsWithPlotCounts() {
 			token: 0,
 			agreement: 0,
 			sold: 0,
+			occupied: 0,
 			total: 0,
 		},
 	}));

@@ -42,7 +42,7 @@ const statusConfig = {
 	},
 	agreement: {
 		label: "Agreement",
-		className: "bg-orange-100 text-orange-800 hover:bg-orange-100",
+		className: "bg-blue-100 text-blue-800 hover:bg-blue-100",
 	},
 	sold: {
 		label: "Sold",
@@ -61,6 +61,7 @@ export function ProjectCard({
 	plotCounts,
 }: ProjectCardProps) {
 	const router = useRouter();
+	const totalInventory = plotCounts.total > 0 ? plotCounts.total : total_plots_count;
 
 	return (
 		<div
@@ -98,7 +99,7 @@ export function ProjectCard({
 					{/* Counts row */}
 					<div className="flex items-center gap-2 text-sm text-zinc-600">
 						<LayoutGrid className="h-4 w-4 shrink-0" />
-						<span>{total_plots_count} total plots</span>
+						<span>{plotCounts.sold} / {totalInventory} sold</span>
 					</div>
 
 					{/* Status badges */}

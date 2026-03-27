@@ -43,7 +43,16 @@ export async function createSale(values: SaleFormValues): Promise<ActionResponse
   // 1. A database unique constraint on (plot_id, status) where status != 'available'
   // 2. Or a CHECK constraint preventing multiple sales for same plot
   // 3. Or use RLS policies to enforce single active sale per plot
-  if (plotRow.status && plotRow.status !== "available") {
+  const { data: existingActiveSale } = await supabase
+    .from("plot_sales")
+    .select("id, sale_phase")
+    .eq("plot_id", parsed.data.plot_id)
+    .eq("is_cancelled", false)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingActiveSale || (plotRow.status && plotRow.status !== "available")) {
     return { success: false, error: "This plot is already sold or booked." };
   }
 

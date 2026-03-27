@@ -153,11 +153,11 @@ export default async function DashboardPage({
 					<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 						<div className="rounded-lg border border-zinc-200 p-4">
 							<div className="text-[10px] font-semibold uppercase text-zinc-500">Converted enquiries</div>
-							<div className="text-xl font-bold text-zinc-900">{stats.summary.enquiryConvertedCustomers}</div>
+							<div className="text-xl font-bold text-zinc-900">{stats.summary.enquiryConvertedCustomersBoughtPlots}</div>
 						</div>
 						<div className="rounded-lg border border-zinc-200 p-4">
-							<div className="text-[10px] font-semibold uppercase text-zinc-500">Converted customers who bought plots</div>
-							<div className="text-xl font-bold text-green-700">{stats.summary.enquiryConvertedCustomersBoughtPlots}</div>
+							<div className="text-[10px] font-semibold uppercase text-zinc-500">Enquiries converted to sale %</div>
+							<div className="text-xl font-bold text-green-700">{stats.summary.enquiryConversionToSaleRate}%</div>
 						</div>
 						{modules.sales && (
 							<div className="rounded-lg border border-zinc-200 p-4">
@@ -227,12 +227,12 @@ export default async function DashboardPage({
 					</CardHeader>
 					<CardContent className="space-y-6">
 						{stats.projectStats.map((project) => {
-							const percentage = project.total > 0 ? (project.sold / project.total) * 100 : 0;
+							const percentage = project.total > 0 ? (project.occupied / project.total) * 100 : 0;
 							return (
 								<div key={project.name} className="space-y-2">
 									<div className="flex justify-between text-sm">
 										<span className="font-semibold">{project.name}</span>
-										<span className="text-zinc-500">{project.sold} / {project.total} Plots Sold</span>
+										<span className="text-zinc-500">{project.occupied} / {project.total} Plots Occupied</span>
 									</div>
 									<Progress value={percentage} className="h-2" />
 									<div className="flex justify-between text-[10px] text-zinc-400 font-bold uppercase">

@@ -92,7 +92,7 @@ export default async function ReportsPage({
 					{/* Project-specific analytics */}
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 						<StatCard title="Plots Total" value={String(projectAnalytics.plots.total)} icon={Home} color="blue" />
-						<StatCard title="Plots Sold" value={String(projectAnalytics.plots.sold)} icon={Handshake} color="green" />
+						<StatCard title="Plots Occupied" value={String(projectAnalytics.plots.occupied)} icon={Handshake} color="green" />
 						<StatCard title="Plots Available" value={String(projectAnalytics.plots.available)} icon={Building2} color="zinc" />
 						{modules.payments && (
 							<StatCard title="Revenue Collected" value={formatCurrency(projectAnalytics.revenue.total)} icon={CreditCard} color="orange" />
@@ -176,7 +176,7 @@ export default async function ReportsPage({
 											<span className="font-bold">{formatCurrency(p.value)}</span>
 										</div>
 									))}
-									{projectAnalytics.topPlots.length === 0 && <p className="text-sm text-zinc-400">No sold plots</p>}
+									{projectAnalytics.topPlots.length === 0 && <p className="text-sm text-zinc-400">No occupied plots</p>}
 								</div>
 							</CardContent>
 						</Card>

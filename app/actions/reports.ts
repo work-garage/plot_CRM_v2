@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getScopeContext } from "@/lib/server/scope";
 import { isClosedLostStatus, isClosedWonStatus } from "@/lib/constants/lead-status";
 import { calculateCommissionFinance } from "@/lib/utils/commission-finance";
+import { isPlotOccupied, resolvePlotStatus } from "@/lib/utils/plot-status";
 
 export type ReportFilters = {
   startDate?: string;
@@ -33,7 +34,7 @@ export async function getReportStats(filters?: ReportFilters) {
   let salesQuery = supabase
     .from("plot_sales")
     .select(
-      "id, customer_id, advisor_id, sold_by_admin, total_sale_amount, amount_paid, remaining_amount, created_at, plots(project_id, projects(id, name)), sale_phase"
+      "id, plot_id, customer_id, advisor_id, sold_by_admin, total_sale_amount, amount_paid, remaining_amount, created_at, plots(project_id, projects(id, name)), sale_phase"
     )
     .eq("is_cancelled", false);
 
@@ -44,6 +45,7 @@ export async function getReportStats(filters?: ReportFilters) {
 
   const { data: sales } = await salesQuery;
   const filteredSales = (sales ?? []).filter((sale: any) => (!start && !end) || inRange(sale.created_at ?? "", start, end));
+  const allVisibleSales = sales ?? [];
 
   const totalSalesValue = filteredSales.reduce((sum: number, sale: any) => sum + Number(sale.total_sale_amount ?? 0), 0);
   const totalRevenueCollected = filteredSales.reduce((sum: number, sale: any) => sum + Number(sale.amount_paid ?? 0), 0);
@@ -132,13 +134,39 @@ export async function getReportStats(filters?: ReportFilters) {
   const { data: projects } = await supabase.from("projects").select("id, name, plots(id, status)");
   const projectStats = (projects ?? []).map((project: any) => {
     const plots = (project.plots as any[]) || [];
+    const projectSales = allVisibleSales.filter((sale: any) => (sale as any).plots?.project_id === project.id);
+    const saleByPlotId = new Map<string, any>();
+    for (const sale of projectSales) {
+      if (!saleByPlotId.has(sale.plot_id)) {
+        saleByPlotId.set(sale.plot_id, sale);
+      }
+    }
     const total = plots.length;
-    const sold = plots.filter((plot: any) => ["sold", "agreement", "token"].includes(plot.status)).length;
-    const available = plots.filter((plot: any) => plot.status === "available").length;
+    const occupied = plots.filter((plot: any) =>
+      isPlotOccupied(
+        resolvePlotStatus({
+          plotStatus: plot.status,
+          salePhase: saleByPlotId.get(plot.id)?.sale_phase,
+        }),
+      ),
+    ).length;
+    const sold = plots.filter((plot: any) =>
+      resolvePlotStatus({
+        plotStatus: plot.status,
+        salePhase: saleByPlotId.get(plot.id)?.sale_phase,
+      }) === "sold",
+    ).length;
+    const available = plots.filter((plot: any) =>
+      resolvePlotStatus({
+        plotStatus: plot.status,
+        salePhase: saleByPlotId.get(plot.id)?.sale_phase,
+      }) === "available",
+    ).length;
     const soldInPeriod = filteredSales.filter((sale: any) => (sale as any).plots?.project_id === project.id).length;
     return {
       name: project.name,
       total,
+      occupied,
       sold,
       soldInPeriod,
       available,
@@ -194,6 +222,17 @@ export async function getReportStats(filters?: ReportFilters) {
   const convertedCustomerIds = new Set(convertedInPeriod.map((customer: any) => customer.id));
   const convertedSales = filteredSales.filter((sale: any) => convertedCustomerIds.has(sale.customer_id));
   const enquiryConvertedRevenue = convertedSales.reduce((sum: number, sale: any) => sum + Number(sale.total_sale_amount ?? 0), 0);
+  const enquiryConvertedCustomersBoughtPlots = new Set(convertedSales.map((sale: any) => sale.customer_id)).size;
+
+  const lostCustomersInPeriod = visibleCustomers.filter(
+    (customer: any) => isClosedLostStatus(customer.lead_status) && inRange(customer.created_at, start, end)
+  );
+  const totalDecided = enquiryConvertedCustomersBoughtPlots + lostCustomersInPeriod.length;
+
+  const enquiryConversionToSaleRate =
+    totalDecided > 0
+      ? Math.round((enquiryConvertedCustomersBoughtPlots / totalDecided) * 100)
+      : 0;
 
   const conversionCategoryCounts: Record<string, number> = {};
   for (const customer of convertedInPeriod) {
@@ -227,7 +266,8 @@ export async function getReportStats(filters?: ReportFilters) {
       salesCount: filteredSales.length,
       paymentsCount: filteredPayments.length,
       enquiryConvertedCustomers: convertedInPeriod.length,
-      enquiryConvertedCustomersBoughtPlots: new Set(convertedSales.map((sale: any) => sale.customer_id)).size,
+      enquiryConvertedCustomersBoughtPlots,
+      enquiryConversionToSaleRate,
       enquiryConvertedRevenue,
       totalExtraCommissionPaid,
     },
@@ -280,7 +320,7 @@ export async function getProjectAnalytics(projectId: string, filters?: ReportFil
   const plotIds = (plots ?? []).map((plot: any) => plot.id);
   let salesQuery = supabase
     .from("plot_sales")
-    .select("id, plot_id, advisor_id, total_sale_amount, amount_paid, remaining_amount, sold_by_admin, created_at, advisors(name)")
+    .select("id, plot_id, advisor_id, total_sale_amount, amount_paid, remaining_amount, sold_by_admin, sale_phase, created_at, advisors(name)")
     .in("plot_id", plotIds)
     .eq("is_cancelled", false);
 
@@ -293,6 +333,7 @@ export async function getProjectAnalytics(projectId: string, filters?: ReportFil
   const filteredSales = (sales ?? []).filter(
     (sale: any) => (!start && !end) || inRange(sale.created_at ?? "", start, end),
   );
+  const allProjectSales = sales ?? [];
 
   const advisorSales: Record<string, number> = {};
   for (const sale of filteredSales) {
@@ -330,8 +371,33 @@ export async function getProjectAnalytics(projectId: string, filters?: ReportFil
     project: project as any,
     plots: {
       total: plots?.length ?? 0,
-      sold: (plots ?? []).filter((plot: any) => ["sold", "agreement", "token"].includes(plot.status)).length,
-      available: (plots ?? []).filter((plot: any) => plot.status === "available").length,
+      occupied: (plots ?? []).filter((plot: any) => {
+        const sale = allProjectSales.find((row: any) => row.plot_id === plot.id);
+        return isPlotOccupied(
+          resolvePlotStatus({
+            plotStatus: plot.status,
+            salePhase: sale?.sale_phase,
+          }),
+        );
+      }).length,
+      sold: (plots ?? []).filter((plot: any) => {
+        const sale = allProjectSales.find((row: any) => row.plot_id === plot.id);
+        return (
+          resolvePlotStatus({
+            plotStatus: plot.status,
+            salePhase: sale?.sale_phase,
+          }) === "sold"
+        );
+      }).length,
+      available: (plots ?? []).filter((plot: any) => {
+        const sale = allProjectSales.find((row: any) => row.plot_id === plot.id);
+        return (
+          resolvePlotStatus({
+            plotStatus: plot.status,
+            salePhase: sale?.sale_phase,
+          }) === "available"
+        );
+      }).length,
     },
     revenue: {
       total: filteredSales.reduce((sum: number, sale: any) => sum + Number(sale.amount_paid ?? 0), 0),
@@ -345,14 +411,25 @@ export async function getProjectAnalytics(projectId: string, filters?: ReportFil
       .sort((a, b) => b.value - a.value),
     topPlots: (plots ?? [])
       .filter((plot: any) => {
-        if (plot.status === "available") return false;
+        const sale = allProjectSales.find((row: any) => row.plot_id === plot.id);
+        if (
+          resolvePlotStatus({
+            plotStatus: plot.status,
+            salePhase: sale?.sale_phase,
+          }) === "available"
+        ) {
+          return false;
+        }
         if (!start && !end) return true;
         const plotSale = filteredSales.find((sale: any) => sale.plot_id === plot.id);
         return Boolean(plotSale);
       })
       .map((plot: any) => ({
         plot_number: plot.plot_number,
-        status: plot.status,
+        status: resolvePlotStatus({
+          plotStatus: plot.status,
+          salePhase: allProjectSales.find((sale: any) => sale.plot_id === plot.id)?.sale_phase,
+        }),
         value: Number(plot.size_sqft ?? 0) * Number(plot.rate_per_sqft ?? 0),
       }))
       .sort((a: any, b: any) => b.value - a.value)
@@ -372,6 +449,7 @@ function getEmptyReport() {
       paymentsCount: 0,
       enquiryConvertedCustomers: 0,
       enquiryConvertedCustomersBoughtPlots: 0,
+      enquiryConversionToSaleRate: 0,
       enquiryConvertedRevenue: 0,
       totalExtraCommissionPaid: 0,
     },
@@ -383,7 +461,7 @@ function getEmptyReport() {
       lost: 0,
     },
     advisorPerformance: [] as { name: string; totalCommission: number; paidCommission: number; pending: number }[],
-    projectStats: [] as { name: string; total: number; sold: number; soldInPeriod: number; available: number }[],
+    projectStats: [] as { name: string; total: number; occupied: number; sold: number; soldInPeriod: number; available: number }[],
     revenueByProject: [] as { name: string; value: number }[],
     revenueByPhase: [] as { phase: string; value: number }[],
     topAdvisors: [] as { name: string; value: number }[],

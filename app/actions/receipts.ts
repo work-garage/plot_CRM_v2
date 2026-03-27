@@ -12,6 +12,14 @@ export type ReceiptResult = {
 	error?: string;
 };
 
+function mapReceiptStorageError(error: { message?: string } | null | undefined): string {
+	const message = String(error?.message ?? "Receipt upload failed");
+	if (message.toLowerCase().includes("bucket not found")) {
+		return "Receipt storage is not configured. Create the 'receipts' bucket and rerun the latest storage migration.";
+	}
+	return message;
+}
+
 function formatCurrency(amount: number): string {
 	// Standard PDF WinAnsi fonts do not support the rupee symbol reliably.
 	return `Rs. ${amount.toLocaleString("en-IN")}`;
@@ -303,7 +311,7 @@ export async function generateReceipt(saleId: string): Promise<ReceiptResult> {
 		});
 
 	if (uploadErr) {
-		return { success: false, error: uploadErr.message };
+		return { success: false, error: mapReceiptStorageError(uploadErr) };
 	}
 
 	const { error: updateErr } = await supabase

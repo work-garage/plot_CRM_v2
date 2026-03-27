@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { plotSchema, type PlotFormValues } from "@/lib/validations/plot";
 import { normalizeSaleRecord } from "@/lib/utils/sale-normalization";
+import { resolvePlotStatus } from "@/lib/utils/plot-status";
 
 export type ActionResponse = {
 	success: boolean;
@@ -123,7 +124,15 @@ export async function updatePlot(
 		return { success: false, error: "Plot not found" };
 	}
 
-	if (plot.status !== "available") {
+	const { data: activeSale } = await supabase
+		.from("plot_sales")
+		.select("id")
+		.eq("plot_id", id)
+		.eq("is_cancelled", false)
+		.limit(1)
+		.maybeSingle();
+
+	if (activeSale || plot.status !== "available") {
 		return {
 			success: false,
 			error: "Cannot edit a plot that has an active sale or is sold",
@@ -174,7 +183,15 @@ export async function deletePlot(
 		return { success: false, error: "Plot not found" };
 	}
 
-	if (plot.status !== "available") {
+	const { data: activeSale } = await supabase
+		.from("plot_sales")
+		.select("id")
+		.eq("plot_id", id)
+		.eq("is_cancelled", false)
+		.limit(1)
+		.maybeSingle();
+
+	if (activeSale || plot.status !== "available") {
 		return {
 			success: false,
 			error: "Cannot delete a plot that has an active sale or is sold",
@@ -264,17 +281,20 @@ export async function getPlotsByProject(
       sold_by_admin,
       followup_date,
       advisor_rate_per_sqft,
+      created_at,
       customers!inner(name),
       advisors(name),
       plots!inner(size_sqft, rate_per_sqft)
     `
 		)
 		.in("plot_id", plotIds)
-		.eq("is_cancelled", false);
+		.eq("is_cancelled", false)
+		.order("created_at", { ascending: false });
 
 	// Build a map of plot_id → sale info
 	const salesMap = new Map<string, PlotWithSaleInfo["sale"]>();
 	sales?.forEach((s: any) => {
+		if (salesMap.has(s.plot_id)) return;
     const normalized = normalizeSaleRecord({
       ...s,
       plots: s.plots,
@@ -302,7 +322,10 @@ export async function getPlotsByProject(
 		size_sqft: Number(plot.size_sqft),
 		rate_per_sqft: Number(plot.rate_per_sqft),
 		total_amount: Number(plot.total_amount),
-		status: (plot.status as PlotWithSaleInfo["status"]) ?? "available",
+		status: resolvePlotStatus({
+			plotStatus: plot.status,
+			salePhase: salesMap.get(plot.id)?.sale_phase,
+		}) as PlotWithSaleInfo["status"],
 		facing: plot.facing,
 		notes: plot.notes,
 		created_at: plot.created_at,
@@ -344,6 +367,7 @@ export async function getPlotWithPayments(
       sold_by_admin,
       followup_date,
       advisor_rate_per_sqft,
+      created_at,
       customers!inner(name),
       advisors(name),
       plots!inner(size_sqft, rate_per_sqft)
@@ -404,7 +428,10 @@ export async function getPlotWithPayments(
 		size_sqft: Number(plot.size_sqft),
 		rate_per_sqft: Number(plot.rate_per_sqft),
 		total_amount: Number(plot.total_amount),
-		status: (plot.status as PlotWithSaleInfo["status"]) ?? "available",
+		status: resolvePlotStatus({
+			plotStatus: plot.status,
+			salePhase: sale?.sale_phase ?? null,
+		}) as PlotWithSaleInfo["status"],
 		facing: plot.facing,
 		notes: plot.notes,
 		created_at: plot.created_at,
