@@ -1,7 +1,8 @@
 export type FinanceInputs = {
   plotSizeSqft: number;
   baseRatePerSqft: number;
-  advisorRatePerSqft: number;
+  advisorRatePerSqft?: number | null;
+  sellingPriceOverride?: number | null;
   downPayment: number;
   otherPayments: number;
 };
@@ -27,14 +28,21 @@ function assertFiniteNumber(name: string, value: unknown): number {
 export function validateFinance(inputs: FinanceInputs) {
   const plotSizeSqft = assertFiniteNumber("plotSizeSqft", inputs.plotSizeSqft);
   const baseRatePerSqft = assertFiniteNumber("baseRatePerSqft", inputs.baseRatePerSqft);
-  const advisorRatePerSqft = assertFiniteNumber("advisorRatePerSqft", inputs.advisorRatePerSqft);
   const downPayment = assertFiniteNumber("downPayment", inputs.downPayment);
   const otherPayments = assertFiniteNumber("otherPayments", inputs.otherPayments);
+  const hasOverride = inputs.sellingPriceOverride != null;
 
   if (plotSizeSqft <= 0) throw new Error("plotSizeSqft must be > 0");
   if (baseRatePerSqft <= 0) throw new Error("baseRatePerSqft must be > 0");
-  if (advisorRatePerSqft < baseRatePerSqft) {
-    throw new Error("advisorRatePerSqft must be >= baseRatePerSqft");
+  if (hasOverride) {
+    const sellingPriceOverride = assertFiniteNumber("sellingPriceOverride", inputs.sellingPriceOverride);
+    if (sellingPriceOverride <= 0) throw new Error("sellingPriceOverride must be > 0");
+  } else {
+    const advisorRatePerSqft = assertFiniteNumber("advisorRatePerSqft", inputs.advisorRatePerSqft);
+    if (advisorRatePerSqft <= 0) throw new Error("advisorRatePerSqft must be > 0");
+    if (advisorRatePerSqft < baseRatePerSqft) {
+      throw new Error("advisorRatePerSqft must be >= baseRatePerSqft");
+    }
   }
   if (downPayment < 0) throw new Error("downPayment must be >= 0");
   if (otherPayments < 0) throw new Error("otherPayments must be >= 0");
@@ -69,23 +77,29 @@ export function calculateFinance(inputs: FinanceInputs): FinanceResult {
 
   const plotSizeSqft = assertFiniteNumber("plotSizeSqft", inputs.plotSizeSqft);
   const baseRatePerSqft = assertFiniteNumber("baseRatePerSqft", inputs.baseRatePerSqft);
-  const advisorRatePerSqft = assertFiniteNumber("advisorRatePerSqft", inputs.advisorRatePerSqft);
   const downPayment = assertFiniteNumber("downPayment", inputs.downPayment);
   const otherPayments = assertFiniteNumber("otherPayments", inputs.otherPayments);
+  const hasOverride = inputs.sellingPriceOverride != null;
 
   const received = downPayment + otherPayments;
 
   const baseTotal = calculateBaseTotal(plotSizeSqft, baseRatePerSqft);
-  const sellingPrice = calculateSellingPrice(plotSizeSqft, advisorRatePerSqft);
+  const sellingPrice = hasOverride
+    ? assertFiniteNumber("sellingPriceOverride", inputs.sellingPriceOverride)
+    : calculateSellingPrice(
+        plotSizeSqft,
+        assertFiniteNumber("advisorRatePerSqft", inputs.advisorRatePerSqft),
+      );
   if (sellingPrice <= 0) throw new Error("sellingPrice must be > 0");
   if (downPayment > sellingPrice) throw new Error("downPayment cannot exceed sellingPrice");
   if (received > sellingPrice) throw new Error("received cannot exceed sellingPrice");
 
   const profit = calculateProfit(baseTotal, sellingPrice);
   const ratio = calculatePaymentRatio(received, sellingPrice);
-  const advisorEarned = calculateAdvisorEarning(profit, ratio);
+  const eligibleProfit = Math.max(0, profit);
+  const advisorEarned = calculateAdvisorEarning(eligibleProfit, ratio);
   const remaining = calculateRemaining(received, sellingPrice);
-  const remainingPotential = profit - advisorEarned;
+  const remainingPotential = eligibleProfit - advisorEarned;
   const downPaymentPaymentRecord = buildDownPaymentPaymentRecord(downPayment);
 
   return {
@@ -114,4 +128,3 @@ export function buildDownPaymentPaymentRecord(
   if (amt <= 0) return null;
   return { amount: amt, type: "down_payment", status: "confirmed" };
 }
-

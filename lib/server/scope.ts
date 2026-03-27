@@ -6,10 +6,33 @@ type ScopeContext = {
   advisorId: string | null;
 };
 
+function isExpectedLoggedOutAuthError(error: any): boolean {
+  const code = String(error?.code ?? "");
+  const name = String(error?.name ?? "");
+  const message = String(error?.message ?? "");
+  return (
+    code === "refresh_token_not_found" ||
+    code === "invalid_refresh_token" ||
+    name === "AuthSessionMissingError" ||
+    message.toLowerCase().includes("auth session missing")
+  );
+}
+
 export async function getScopeContext(supabase: SupabaseClient): Promise<ScopeContext> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user: User | null = null;
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      if (!isExpectedLoggedOutAuthError(error)) {
+        console.error("Scope auth error:", error);
+      }
+    }
+    user = data.user;
+  } catch (error: any) {
+    if (!isExpectedLoggedOutAuthError(error)) {
+      console.error("Scope auth exception:", error);
+    }
+  }
 
   if (!user) {
     return { user: null, role: null, advisorId: null };

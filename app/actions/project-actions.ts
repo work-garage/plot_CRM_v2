@@ -264,6 +264,7 @@ export async function getProjectWithStats(
         token_date,
         sale_phase,
         plot_id,
+        sold_by_admin,
         plots(plot_number),
         customers(name, advisor_id),
         advisors(name)
@@ -290,7 +291,7 @@ export async function getProjectWithStats(
 				id: s.id,
 				plot_number: s.plots?.plot_number ?? "—",
 				customer_name: s.customers?.name ?? "—",
-				advisor_name: s.advisors?.name ?? "—",
+				advisor_name: s.sold_by_admin ? "Admin (Direct)" : s.advisors?.name ?? "—",
 				total_sale_amount: Number(s.total_sale_amount),
 				token_date: s.token_date,
 				sale_phase: s.sale_phase,

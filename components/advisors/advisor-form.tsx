@@ -173,7 +173,7 @@ export function AdvisorForm({
 						{mode === "edit" ? "Edit Advisor" : "New Advisor"}
 					</CardTitle>
 					<CardDescription>
-						Enter details for the channel partner
+						Enter details for the channel Advisor
 					</CardDescription>
 				</div>
 				<Button

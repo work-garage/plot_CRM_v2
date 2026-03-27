@@ -264,7 +264,7 @@ export async function getProjectAnalytics(projectId: string, filters?: ReportFil
   const plotIds = (plots ?? []).map((plot: any) => plot.id);
   let salesQuery = supabase
     .from("plot_sales")
-    .select("id, advisor_id, total_sale_amount, amount_paid, remaining_amount, sold_by_admin, advisors(name)")
+    .select("id, plot_id, advisor_id, total_sale_amount, amount_paid, remaining_amount, sold_by_admin, created_at, advisors(name)")
     .in("plot_id", plotIds)
     .eq("is_cancelled", false);
 

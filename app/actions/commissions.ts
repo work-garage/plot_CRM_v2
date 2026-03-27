@@ -3,6 +3,23 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
+type AdvisorCommissionPayment = {
+	id: string;
+	amount: number;
+	extra_paid_amount?: number | null;
+	paid_date: string;
+	payment_mode?: string | null;
+	reference_number?: string | null;
+	receipt_path?: string | null;
+	note?: string | null;
+	created_at?: string;
+};
+
+type CommissionWithPayments = {
+	advisor_commission_payments?: AdvisorCommissionPayment[];
+	[key: string]: any;
+};
+
 export async function getCommissions() {
 	const supabase = await createClient();
 	if (!supabase) return [];
@@ -95,7 +112,7 @@ export async function getCommissions() {
 	return (data || []).map((row): CommissionWithPayments => ({
 		...row,
 		advisor_commission_payments: (row.advisor_commission_payments ?? []).map(
-			(p): AdvisorCommissionPayment => ({ ...p, extra_paid_amount: p.extra_paid_amount ?? 0 })
+			(p: any): AdvisorCommissionPayment => ({ ...p, extra_paid_amount: p.extra_paid_amount ?? 0 })
 		),
 	}));
 }

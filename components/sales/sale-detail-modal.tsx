@@ -25,12 +25,13 @@ interface SaleDetailModalProps {
 		total_sale_amount: number;
 		amount_paid?: number | null;
 		remaining_amount?: number | null;
+		sold_by_admin?: boolean | null;
 		token_date?: string | null;
 		agreement_date?: string | null;
 		sale_phase: string;
 		plots: { plot_number: string; projects?: { name: string } | null };
 		customers: { name: string };
-		advisors: { name: string; code?: string };
+		advisors?: { name?: string | null; code?: string | null } | null;
 	};
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -125,7 +126,7 @@ export function SaleDetailModal({
 							</p>
 							<p className="text-sm font-semibold flex items-center gap-1">
 								<User className="h-3.5 w-3.5 text-zinc-400" />
-								{sale.advisors?.name ?? "—"}
+								{sale.sold_by_admin ? "Admin (Direct)" : sale.advisors?.name ?? "—"}
 								{sale.advisors?.code && (
 									<span className="text-xs text-zinc-500 font-normal">
 										({sale.advisors.code})

@@ -55,7 +55,7 @@ export const REMINDER_TEMPLATES: ReminderTemplateGroup[] = [
 		templates: [
 			{
 				id: "bda-1",
-				name: "Partner Appreciation",
+				name: "Advisor Appreciation",
 				body: `Happy Birthday, [name]! Thank you for being a valued partner. Wishing you a year of growth and success!${COMPANY_SIGNATURE}`,
 			},
 			{

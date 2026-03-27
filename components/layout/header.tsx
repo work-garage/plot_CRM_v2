@@ -18,6 +18,18 @@ interface HeaderProps {
   onMenuClick?: () => void;
 }
 
+function isExpectedLoggedOutAuthError(error: any): boolean {
+  const code = String(error?.code ?? "");
+  const name = String(error?.name ?? "");
+  const message = String(error?.message ?? "");
+  return (
+    code === "refresh_token_not_found" ||
+    code === "invalid_refresh_token" ||
+    name === "AuthSessionMissingError" ||
+    message.toLowerCase().includes("auth session missing")
+  );
+}
+
 export function Header({ onMenuClick = () => {} }: HeaderProps) {
   const router = useRouter();
   const [userInfo, setUserInfo] = useState<{
@@ -31,7 +43,10 @@ export function Header({ onMenuClick = () => {} }: HeaderProps) {
 	const loadUserInfo = useCallback(async () => {
 		const supabase = createClient();
 
-		const { data } = await supabase.auth.getUser();
+		const { data, error } = await supabase.auth.getUser();
+		if (error && !isExpectedLoggedOutAuthError(error)) {
+			console.error("Header auth error:", error);
+		}
 		const user = data.user;
 		if (!user) {
 			setUserInfo(null);

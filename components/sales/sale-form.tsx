@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Loader2, Calculator, CheckCircle2, AlertCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import {
   Button,
   Input,
@@ -51,6 +51,38 @@ interface SaleFormProps {
   }>;
 }
 
+type EntryMode = "auto" | "manual";
+
+const SAFE_ZERO_FINANCE = {
+  baseTotal: 0,
+  sellingPrice: 0,
+  profit: 0,
+  received: 0,
+  ratio: 0,
+  advisorEarned: 0,
+  remaining: 0,
+  remainingPotential: 0,
+  downPaymentPaymentRecord: null,
+} as const;
+
+function parseNonNegativeNumber(value: string): number | undefined {
+  if (value === "") return undefined;
+  const next = Number(value);
+  if (!Number.isFinite(next)) return undefined;
+  return Math.max(0, next);
+}
+
+function parseBoundedInteger(value: string, min: number, max: number): number | undefined {
+  if (value === "") return undefined;
+  const next = Math.trunc(Number(value));
+  if (!Number.isFinite(next)) return undefined;
+  return Math.min(max, Math.max(min, next));
+}
+
+function getProjectId(plot: any): string | null {
+  return plot?.project_id ?? plot?.projects?.id ?? null;
+}
+
 export function SaleForm({
   plots,
   customers,
@@ -68,6 +100,8 @@ export function SaleForm({
   const [loading, setLoading] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle");
   const [statusText, setStatusText] = useState("");
+  const [pricingMode, setPricingMode] = useState<EntryMode>("auto");
+  const [emiMode, setEmiMode] = useState<EntryMode>("auto");
   const [shareModal, setShareModal] = useState<{ saleId: string; customerPhone?: string | null; customerName?: string | null } | null>(null);
 
   const form = useForm<SaleFormValues>({
@@ -91,13 +125,13 @@ export function SaleForm({
   });
 
   const selectedPlotId = form.watch("plot_id");
+  const selectedCustomerId = form.watch("customer_id");
   const soldByAdmin = form.watch("sold_by_admin");
   const selectedAdvisorId = form.watch("advisor_id");
   const selectedPhase = form.watch("sale_phase");
-  const totalSaleAmount = form.watch("total_sale_amount") ?? 0;
-  const downPayment = form.watch("down_payment") ?? 0;
-  const emiMonths = form.watch("emi_months");
-  const remaining = totalSaleAmount - downPayment;
+  const totalSaleAmount = Number(form.watch("total_sale_amount") ?? 0);
+  const downPayment = Number(form.watch("down_payment") ?? 0);
+  const emiMonths = Number(form.watch("emi_months") ?? 0);
   const phaseDateFieldName = selectedPhase === "token" ? "token_date" : "agreement_date";
   const phaseDateLabel =
     selectedPhase === "token"
@@ -113,44 +147,23 @@ export function SaleForm({
     [plots, selectedPlotId]
   );
 
-  const selectedProjectId =
-    selectedPlot?.project_id ?? selectedPlot?.projects?.id ?? null;
+  const selectedCustomer = useMemo(
+    () => customers.find((customer) => customer.id === selectedCustomerId) ?? null,
+    [customers, selectedCustomerId]
+  );
 
-  const allowedProjectIdsForAdvisor = useMemo(() => {
-    if (!selectedAdvisorId) return null;
-    const set = new Set<string>();
-    (advisorAssignments ?? []).forEach((a) => {
-      if (a.advisor_id === selectedAdvisorId) set.add(a.project_id);
-    });
-    return set;
-  }, [advisorAssignments, selectedAdvisorId]);
+  const selectedProjectId = getProjectId(selectedPlot);
 
-  const filteredPlots = useMemo(() => {
-    if (soldByAdmin) return plots;
-    if (!allowedProjectIdsForAdvisor) return plots;
-    return plots.filter((p) => {
-      const pid = p.project_id ?? p.projects?.id;
-      return pid ? allowedProjectIdsForAdvisor.has(pid) : false;
-    });
-  }, [allowedProjectIdsForAdvisor, plots, soldByAdmin]);
-
+  const filteredPlots = plots;
   const filteredAdvisors = advisors;
 
-  // keep selections consistent when filters change
   useEffect(() => {
-    if (
-      selectedPlotId &&
-      allowedProjectIdsForAdvisor &&
-      selectedProjectId &&
-      !allowedProjectIdsForAdvisor.has(selectedProjectId)
-    ) {
-      form.setValue("plot_id", "");
+    if (soldByAdmin) {
+      form.setValue("advisor_id", null, { shouldValidate: true });
+    } else if (!selectedAdvisorId && selectedCustomer?.advisor_id) {
+      form.setValue("advisor_id", selectedCustomer.advisor_id, { shouldValidate: true });
     }
-  }, [allowedProjectIdsForAdvisor, form, selectedPlotId, selectedProjectId]);
-
-  useEffect(() => {
-    if (soldByAdmin) form.setValue("advisor_id", null);
-  }, [soldByAdmin, form]);
+  }, [form, selectedAdvisorId, selectedCustomer?.advisor_id, soldByAdmin]);
 
   // Keep one visible date in sync when switching phase (token ↔ other phases use different form keys).
   useEffect(() => {
@@ -162,34 +175,6 @@ export function SaleForm({
       if (!agr && token) form.setValue("agreement_date", token);
     }
   }, [selectedPhase, form]);
-
-  // Auto-compute monthly_emi from emi_months when remaining > 0
-  useEffect(() => {
-    if (selectedPhase === "full_payment") {
-      form.setValue("emi_months", null);
-      form.setValue("monthly_emi", null);
-      form.setValue("emi_day", null);
-      return;
-    }
-    const months = Number(emiMonths);
-    if (months >= 1 && remaining > 0) {
-      const computed = Math.ceil(remaining / months);
-      form.setValue("monthly_emi", computed);
-    }
-  }, [emiMonths, remaining, form, selectedPhase]);
-
-  // Full payment phase = collect everything now, hide EMI fields.
-  useEffect(() => {
-    if (selectedPhase !== "full_payment") return;
-    const total = Number(form.getValues("total_sale_amount") ?? 0);
-    if (total > 0) {
-      form.setValue("down_payment", total);
-    }
-    form.setValue("emi_months", null);
-    form.setValue("monthly_emi", null);
-    form.setValue("emi_day", null);
-    form.setValue("followup_date", "");
-  }, [selectedPhase, form, totalSaleAmount]);
 
   const plotSize = Number(selectedPlot?.size_sqft ?? 0);
   const plotBaseRatePerSqft = Number(selectedPlot?.rate_per_sqft ?? 0);
@@ -203,76 +188,94 @@ export function SaleForm({
     );
   }, [advisorAssignments, selectedAdvisorId, selectedProjectId]);
 
-  const assignedFaceRatePerSqft = (() => {
-    if (soldByAdmin && selectedPlot) return plotBaseRatePerSqft;
-    if (!advisorAssignment) return 0;
-    return Number((advisorAssignment as any).commission_rate ?? 0);
-  })();
+  const assignedFaceRatePerSqft = soldByAdmin
+    ? plotBaseRatePerSqft
+    : Number((advisorAssignment as any)?.commission_rate ?? 0);
+  const receivedNow = Math.max(0, downPayment);
+  const autoSellingPrice =
+    plotSize > 0 && assignedFaceRatePerSqft > 0 ? plotSize * assignedFaceRatePerSqft : 0;
+  const assignmentMissing =
+    !soldByAdmin && !!selectedPlot && !!selectedAdvisorId && !advisorAssignment;
+  const remaining = Math.max(0, totalSaleAmount - downPayment);
 
-  const advisorRateInvalid =
-    !soldByAdmin &&
-    !!selectedPlot &&
-    assignedFaceRatePerSqft > 0 &&
-    plotBaseRatePerSqft > 0 &&
-    assignedFaceRatePerSqft < plotBaseRatePerSqft;
+  useEffect(() => {
+    if (pricingMode !== "auto") return;
+    if (!selectedPlot) {
+      form.setValue("total_sale_amount", undefined as any, { shouldValidate: true });
+      return;
+    }
+    if (autoSellingPrice > 0) {
+      form.setValue("total_sale_amount", autoSellingPrice, { shouldValidate: true });
+      return;
+    }
+    form.setValue("total_sale_amount", undefined as any, { shouldValidate: true });
+  }, [autoSellingPrice, form, pricingMode, selectedPlot]);
 
-  const receivedNow = Number(downPayment ?? 0);
+  useEffect(() => {
+    if (selectedPhase !== "full_payment") return;
+    if (totalSaleAmount > 0) {
+      form.setValue("down_payment", totalSaleAmount, { shouldValidate: true });
+    }
+    form.setValue("emi_months", null, { shouldValidate: true });
+    form.setValue("monthly_emi", null, { shouldValidate: true });
+    form.setValue("emi_day", null, { shouldValidate: true });
+    form.setValue("followup_date", "", { shouldValidate: true });
+  }, [form, selectedPhase, totalSaleAmount]);
+
+  useEffect(() => {
+    if (selectedPhase === "full_payment") return;
+    if (emiMode !== "auto") return;
+    if (emiMonths >= 1 && remaining > 0) {
+      form.setValue("monthly_emi", Math.ceil(remaining / emiMonths), { shouldValidate: true });
+      return;
+    }
+    form.setValue("monthly_emi", undefined as any, { shouldValidate: true });
+  }, [emiMode, emiMonths, form, remaining, selectedPhase]);
   const finance = useMemo(() => {
-    const safeZero = {
-      baseTotal: 0,
-      sellingPrice: 0,
-      profit: 0,
-      received: 0,
-      ratio: 0,
-      advisorEarned: 0,
-      remaining: 0,
-      remainingPotential: 0,
-      downPaymentPaymentRecord: null,
-    } as const;
-
-    if (plotSize <= 0) return safeZero;
-    if (plotBaseRatePerSqft <= 0) return safeZero;
-    const rate = soldByAdmin ? plotBaseRatePerSqft : assignedFaceRatePerSqft;
-    if (rate <= 0) return safeZero;
-    if (!soldByAdmin && rate < plotBaseRatePerSqft) return safeZero;
-    if (receivedNow < 0) return safeZero;
+    if (!selectedPlot || plotSize <= 0 || plotBaseRatePerSqft <= 0 || totalSaleAmount <= 0) {
+      return {
+        ...SAFE_ZERO_FINANCE,
+        baseTotal: plotSize > 0 && plotBaseRatePerSqft > 0 ? plotSize * plotBaseRatePerSqft : 0,
+        sellingPrice: Math.max(0, totalSaleAmount),
+        received: receivedNow,
+        remaining,
+      };
+    }
 
     try {
       return calculateFinance({
         plotSizeSqft: plotSize,
         baseRatePerSqft: plotBaseRatePerSqft,
-        advisorRatePerSqft: rate,
+        advisorRatePerSqft: assignedFaceRatePerSqft || null,
+        sellingPriceOverride: totalSaleAmount,
         downPayment: receivedNow,
         otherPayments: 0,
       });
     } catch {
-      return safeZero;
+      const baseTotal = plotSize * plotBaseRatePerSqft;
+      const ratio = totalSaleAmount > 0 ? Math.min(1, receivedNow / totalSaleAmount) : 0;
+      const profit = totalSaleAmount - baseTotal;
+      const eligibleProfit = Math.max(0, profit);
+      return {
+        ...SAFE_ZERO_FINANCE,
+        baseTotal,
+        sellingPrice: totalSaleAmount,
+        profit,
+        received: receivedNow,
+        ratio,
+        advisorEarned: eligibleProfit * ratio,
+        remaining,
+        remainingPotential: Math.max(0, eligibleProfit - eligibleProfit * ratio),
+      };
     }
-  }, [assignedFaceRatePerSqft, plotSize, plotBaseRatePerSqft, receivedNow, soldByAdmin]);
-
-  // Auto-fill selling price when plot/advisor/phase changes
-  useEffect(() => {
-    if (!selectedPlotId) return;
-    if (plotSize <= 0) return;
-    const rate = soldByAdmin ? plotBaseRatePerSqft : assignedFaceRatePerSqft;
-    if (rate <= 0) return;
-    if (!soldByAdmin && !selectedAdvisorId) return;
-    const selling = calculateFinance({
-      plotSizeSqft: plotSize,
-      baseRatePerSqft: plotBaseRatePerSqft,
-      advisorRatePerSqft: rate,
-      downPayment: 0,
-      otherPayments: 0,
-    }).sellingPrice;
-    if (selling > 0) form.setValue("total_sale_amount", selling);
   }, [
     assignedFaceRatePerSqft,
-    form,
-    plotSize,
     plotBaseRatePerSqft,
-    selectedAdvisorId,
-    selectedPlotId,
-    soldByAdmin,
+    plotSize,
+    receivedNow,
+    remaining,
+    selectedPlot,
+    totalSaleAmount,
   ]);
 
   const fillMockData = () => {
@@ -283,32 +286,36 @@ export function SaleForm({
 
     const randomPlot = plots[Math.floor(Math.random() * plots.length)];
     const randomCustomer = customers[Math.floor(Math.random() * customers.length)];
-    const randomAdvisor = advisors[Math.floor(Math.random() * advisors.length)];
-
+    const compatibleAssignments = (advisorAssignments ?? []).filter(
+      (assignment) => assignment.project_id === getProjectId(randomPlot)
+    );
+    const advisorPool =
+      compatibleAssignments.length > 0
+        ? advisors.filter((advisor) =>
+            compatibleAssignments.some((assignment) => assignment.advisor_id === advisor.id)
+          )
+        : advisors;
+    const randomAdvisor = advisorPool[Math.floor(Math.random() * advisorPool.length)];
     const randomAssignment =
-      (advisorAssignments ?? []).find(
-        (a) => a.advisor_id === randomAdvisor.id && a.project_id === (randomPlot.project_id ?? randomPlot.projects?.id)
-      ) ?? null;
-    const randomAdvisorRate = Number((randomAssignment as any)?.commission_rate ?? 0);
-    const selling = calculateFinance({
-      plotSizeSqft: Number(randomPlot.size_sqft ?? 0),
-      baseRatePerSqft: Number(randomPlot.rate_per_sqft ?? 0),
-      advisorRatePerSqft: randomAdvisorRate,
-      downPayment: 0,
-      otherPayments: 0,
-    }).sellingPrice;
+      compatibleAssignments.find((assignment) => assignment.advisor_id === randomAdvisor?.id) ?? null;
+    const selling =
+      randomAssignment && Number(randomPlot.size_sqft ?? 0) > 0
+        ? Number(randomPlot.size_sqft ?? 0) * Number(randomAssignment.commission_rate ?? 0)
+        : Number(randomPlot.size_sqft ?? 0) * Number(randomPlot.rate_per_sqft ?? 0);
 
+    setPricingMode("auto");
+    setEmiMode("auto");
     form.reset({
       plot_id: randomPlot.id,
       customer_id: randomCustomer.id,
       sold_by_admin: false,
-      advisor_id: randomAdvisor.id,
+      advisor_id: randomAdvisor?.id ?? null,
       sale_phase: "token",
       token_date: new Date().toISOString().split('T')[0],
       total_sale_amount: selling || undefined,
       down_payment: selling ? Math.floor(selling * 0.1) : undefined,
       emi_months: 12,
-      monthly_emi: selling ? Math.floor((selling * 0.9) / 12) : undefined,
+      monthly_emi: selling ? Math.ceil((selling * 0.9) / 12) : undefined,
       emi_day: 5,
       followup_date: "",
       notes: "Mock sale generated for testing Nagpur project.",
@@ -372,8 +379,10 @@ export function SaleForm({
       } else {
         setShareModal(null);
       }
-    } catch (err) {
+    } catch {
       toast.error("Something went wrong");
+      setSubmitStatus("error");
+      setStatusText("Something went wrong while submitting the sale.");
     } finally {
       setLoading(false);
     }
@@ -484,11 +493,11 @@ export function SaleForm({
                     name="advisor_id"
                     render={({ field }) => (
                       <FormItem>
-                      <FormLabel>Select Partner *</FormLabel>
+                      <FormLabel>Select Advisor *</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value ?? ""}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Choose any partner" />
+                            <SelectValue placeholder="Choose any advisor" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -523,7 +532,7 @@ export function SaleForm({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="token">Token / Booking</SelectItem>
+                            <SelectItem value="token">Token/Booking</SelectItem>
                             <SelectItem value="agreement">Agreement</SelectItem>
                             <SelectItem value="registry">Registry</SelectItem>
                             <SelectItem value="full_payment">Full Payment</SelectItem>
@@ -578,26 +587,65 @@ export function SaleForm({
                   Financials
                 </h3>
                 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-semibold text-zinc-900">Selling Price</div>
+                      <div className="text-[11px] text-zinc-500">
+                        Auto uses plot size × effective rate. Manual override is saved and reused everywhere.
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={pricingMode === "auto" ? "default" : "outline"}
+                        onClick={() => {
+                          setPricingMode("auto");
+                          if (autoSellingPrice > 0) {
+                            form.setValue("total_sale_amount", autoSellingPrice, { shouldValidate: true });
+                          }
+                        }}
+                      >
+                        Auto
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={pricingMode === "manual" ? "default" : "outline"}
+                        onClick={() => setPricingMode("manual")}
+                      >
+                        Manual
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name="total_sale_amount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Selling Price (Auto)</FormLabel>
+                        <FormLabel>
+                          {pricingMode === "auto" ? "Selling Price (Auto)" : "Selling Price (Manual)"}
+                        </FormLabel>
                         <FormControl>
                           <Input
                             type="number"
+                            min={0}
+                            step="0.01"
                             {...field}
                             value={field.value ?? ""}
-                            disabled
+                            disabled={pricingMode === "auto"}
                             onChange={(e) => {
-                              const raw = e.target.value;
-                              const sanitized = raw.replace(/^0+(?=\d)/, "");
-                              field.onChange(sanitized === "" ? undefined : Number(sanitized));
+                              field.onChange(parseNonNegativeNumber(e.target.value));
+                              if (pricingMode !== "manual") setPricingMode("manual");
                             }}
                           />
                         </FormControl>
+                        <p className="text-[11px] text-zinc-500">
+                          Auto suggestion: {autoSellingPrice > 0 ? formatCurrency(autoSellingPrice) : "Waiting for valid rate"}
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -609,19 +657,19 @@ export function SaleForm({
                       <FormItem>
                         <FormLabel>
                           {selectedPhase === "full_payment"
-                            ? "Amount received (full payment)"
+                            ? "Amount Received (Full Payment)"
                             : "Down Payment"}
                         </FormLabel>
                         <FormControl>
                           <Input
                             type="number"
+                            min={0}
+                            step="0.01"
                             {...field}
                             value={field.value ?? ""}
                             disabled={selectedPhase === "full_payment"}
                             onChange={(e) => {
-                              const raw = e.target.value;
-                              const sanitized = raw.replace(/^0+(?=\d)/, "");
-                              field.onChange(sanitized === "" ? undefined : Number(sanitized));
+                              field.onChange(parseNonNegativeNumber(e.target.value));
                             }}
                           />
                         </FormControl>
@@ -634,6 +682,7 @@ export function SaleForm({
                       </FormItem>
                     )}
                   />
+                  </div>
                 </div>
 
                 <div className="rounded-lg bg-zinc-50 p-3 border border-zinc-200 space-y-1">
@@ -666,6 +715,12 @@ export function SaleForm({
                       {soldByAdmin ? "Pricing (Admin Direct - No Commission)" : "Pricing, Profit & Advisor Earnings"}
                     </h4>
 
+                    {assignmentMissing ? (
+                      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+                        This advisor is not assigned to the selected plot&apos;s project. The plot remains selected, but submission stays blocked until you choose a valid advisor.
+                      </div>
+                    ) : null}
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                       <div>
                         <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
@@ -697,13 +752,8 @@ export function SaleForm({
                           {soldByAdmin ? "Admin (plot base) / sqft" : "Advisor Rate / sqft"}
                         </div>
                         <div className="font-semibold text-zinc-900 text-right">
-                          {formatCurrencyShort(assignedFaceRatePerSqft)}/sqft
+                          {assignedFaceRatePerSqft > 0 ? `${formatCurrencyShort(assignedFaceRatePerSqft)}/sqft` : "₹0/sqft"}
                         </div>
-                        {advisorRateInvalid ? (
-                          <div className="text-[11px] text-red-600 text-right">
-                            Must be ≥ base rate
-                          </div>
-                        ) : null}
                       </div>
 
                       <div className="sm:col-span-2">
@@ -713,6 +763,12 @@ export function SaleForm({
                         <div className="font-bold text-zinc-900">
                           {formatCurrency(finance.sellingPrice)}
                         </div>
+                        <div className="text-[11px] text-zinc-500">
+                          Mode: {pricingMode === "auto" ? "Auto suggestion" : "Manual override"}
+                          {pricingMode === "manual" && autoSellingPrice > 0
+                            ? ` • Diff vs auto: ${formatCurrency(finance.sellingPrice - autoSellingPrice)}`
+                            : ""}
+                        </div>
                       </div>
 
                       {!soldByAdmin && (
@@ -721,7 +777,7 @@ export function SaleForm({
                             <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
                               Total Profit
                             </div>
-                            <div className="font-semibold text-zinc-900">
+                            <div className={`font-semibold ${finance.profit < 0 ? "text-red-600" : "text-zinc-900"}`}>
                               {formatCurrency(finance.profit)}
                             </div>
                           </div>
@@ -757,8 +813,36 @@ export function SaleForm({
                   </div>
                 ) : null}
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {selectedPhase !== "full_payment" && remaining > 0 && (
+                {selectedPhase !== "full_payment" && remaining > 0 ? (
+                  <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-semibold text-zinc-900">Monthly EMI</div>
+                        <div className="text-[11px] text-zinc-500">
+                          Auto mode fills EMI from remaining balance and EMI months.
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={emiMode === "auto" ? "default" : "outline"}
+                          onClick={() => setEmiMode("auto")}
+                        >
+                          Auto
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={emiMode === "manual" ? "default" : "outline"}
+                          onClick={() => setEmiMode("manual")}
+                        >
+                          Manual
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <FormField
                       control={form.control}
                       name="emi_months"
@@ -774,18 +858,16 @@ export function SaleForm({
                               min={1}
                               max={120}
                               onChange={(e) => {
-                                const v = e.target.value;
-                                field.onChange(v === "" ? undefined : Number(v));
+                                field.onChange(parseBoundedInteger(e.target.value, 1, 120));
+                                if (emiMode !== "manual") setEmiMode("auto");
                               }}
                             />
                           </FormControl>
-                          <p className="text-[11px] text-zinc-500">Auto-fills monthly EMI</p>
+                          <p className="text-[11px] text-zinc-500">Used for auto EMI calculation.</p>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  )}
-                  {selectedPhase !== "full_payment" && (
                     <FormField
                       control={form.control}
                       name="monthly_emi"
@@ -793,23 +875,23 @@ export function SaleForm({
                         <FormItem>
                           <FormLabel>Monthly EMI</FormLabel>
                           <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              value={field.value ?? ""}
-                              onChange={(e) => {
-                                const raw = e.target.value;
-                                const sanitized = raw.replace(/^0+(?=\d)/, "");
-                                field.onChange(sanitized === "" ? undefined : Number(sanitized));
-                              }}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
-                  {selectedPhase !== "full_payment" && (
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            {...field}
+                            value={field.value ?? ""}
+                            disabled={emiMode === "auto" && emiMonths >= 1}
+                            onChange={(e) => {
+                              field.onChange(parseNonNegativeNumber(e.target.value));
+                              if (emiMode !== "manual") setEmiMode("manual");
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                     <FormField
                       control={form.control}
                       name="emi_day"
@@ -817,25 +899,25 @@ export function SaleForm({
                         <FormItem>
                           <FormLabel>EMI Day (1-31)</FormLabel>
                           <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              value={field.value ?? ""}
-                              onChange={(e) => {
-                                const raw = e.target.value;
-                                const sanitized = raw.replace(/^0+(?=\d)/, "");
-                                field.onChange(
-                                  sanitized === "" ? undefined : Number(sanitized)
-                                );
-                              }}
-                            />
-                          </FormControl>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={31}
+                            step="1"
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => {
+                              field.onChange(parseBoundedInteger(e.target.value, 1, 31));
+                            }}
+                          />
+                        </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  )}
-                </div>
+                    </div>
+                  </div>
+                ) : null}
                 {selectedPhase === "full_payment" ? (
                   <p className="text-[11px] text-zinc-500">
                     EMI fields are hidden when the sale is recorded as full payment.
@@ -860,7 +942,7 @@ export function SaleForm({
               </Button>
               <Button
                 type="submit"
-                disabled={loading || advisorRateInvalid}
+                disabled={loading || assignmentMissing}
                 className={`min-w-[130px] transition-all duration-300 ${
                   loading
                     ? "scale-[1.02] shadow-md"

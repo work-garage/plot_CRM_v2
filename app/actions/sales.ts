@@ -59,8 +59,14 @@ export async function createSale(values: SaleFormValues): Promise<ActionResponse
 
   const plotBaseRate = Number(plotRow.rate_per_sqft ?? 0);
   const plotSize = Number(plotRow.size_sqft ?? 0);
-  const requestedAdvisorId = parsed.data.advisor_id ?? customerRow.advisor_id ?? null;
-  const soldByAdmin = Boolean(parsed.data.sold_by_admin ?? false) || !requestedAdvisorId;
+  const soldByAdmin = Boolean(parsed.data.sold_by_admin ?? false);
+  const requestedAdvisorId = soldByAdmin
+    ? null
+    : parsed.data.advisor_id ?? customerRow.advisor_id ?? null;
+
+  if (!soldByAdmin && !requestedAdvisorId) {
+    return { success: false, error: "Advisor is required when not sold by admin." };
+  }
 
   let faceRate = plotBaseRate;
   if (!soldByAdmin && requestedAdvisorId) {
@@ -89,11 +95,17 @@ export async function createSale(values: SaleFormValues): Promise<ActionResponse
 
   const isFullPayment = parsed.data.sale_phase === "full_payment";
   const rawDown = Number(parsed.data.down_payment ?? 0);
+  const requestedSaleAmount = Number(parsed.data.total_sale_amount ?? 0);
+  if (!Number.isFinite(requestedSaleAmount) || requestedSaleAmount <= 0) {
+    return { success: false, error: "Selling price must be a positive value." };
+  }
+
   const finance = calculateFinance({
     plotSizeSqft: plotSize,
     baseRatePerSqft: plotBaseRate,
     advisorRatePerSqft: faceRate,
-    downPayment: isFullPayment ? plotSize * faceRate : rawDown,
+    sellingPriceOverride: requestedSaleAmount,
+    downPayment: isFullPayment ? requestedSaleAmount : rawDown,
     otherPayments: 0,
   });
 
@@ -101,10 +113,29 @@ export async function createSale(values: SaleFormValues): Promise<ActionResponse
     return { success: false, error: "Invalid selling price. Check advisor rate and plot size." };
   }
 
+  if (rawDown < 0) {
+    return { success: false, error: "Down payment cannot be negative." };
+  }
+
+  if (!isFullPayment && rawDown > requestedSaleAmount) {
+    return { success: false, error: "Down payment cannot exceed selling price." };
+  }
+
+  const monthlyEmi = parsed.data.monthly_emi == null ? null : Number(parsed.data.monthly_emi);
+  if (monthlyEmi != null && monthlyEmi < 0) {
+    return { success: false, error: "Monthly EMI cannot be negative." };
+  }
+
+  const emiDay = parsed.data.emi_day == null ? null : Number(parsed.data.emi_day);
+  if (emiDay != null && (emiDay < 1 || emiDay > 31)) {
+    return { success: false, error: "EMI day must be between 1 and 31." };
+  }
+
   const phaseDate = parsed.data.token_date || parsed.data.agreement_date || null;
   const tokenDateToStore = parsed.data.sale_phase === "token" ? phaseDate ?? null : null;
   const nonTokenDateToStore = parsed.data.sale_phase === "token" ? null : phaseDate ?? null;
-  const downToStore = isFullPayment ? finance.sellingPrice : rawDown;
+  const downToStore = isFullPayment ? requestedSaleAmount : rawDown;
+  const commissionBase = Math.max(0, requestedSaleAmount - finance.baseTotal);
 
   const { data: sale, error: saleError } = await supabase
     .from("plot_sales")
@@ -116,10 +147,10 @@ export async function createSale(values: SaleFormValues): Promise<ActionResponse
       sale_phase: parsed.data.sale_phase,
       token_date: tokenDateToStore,
       agreement_date: nonTokenDateToStore,
-      total_sale_amount: finance.sellingPrice,
+      total_sale_amount: requestedSaleAmount,
       down_payment: downToStore,
-      monthly_emi: isFullPayment ? null : parsed.data.monthly_emi || null,
-      emi_day: isFullPayment ? null : parsed.data.emi_day || null,
+      monthly_emi: isFullPayment ? null : monthlyEmi,
+      emi_day: isFullPayment ? null : emiDay,
       followup_date: isFullPayment ? null : parsed.data.followup_date || null,
       notes: parsed.data.notes || null,
     })
@@ -172,7 +203,7 @@ export async function createSale(values: SaleFormValues): Promise<ActionResponse
       advisor_id: requestedAdvisorId,
       sale_id: sale.id,
       commission_percentage: 0,
-      total_commission_amount: finance.profit,
+      total_commission_amount: commissionBase,
       amount_paid: 0,
       notes: `Earning based on profit-share for plot ${plotRow.plot_number}`,
     });

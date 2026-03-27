@@ -51,7 +51,7 @@ export function PaymentForm({ sales, initialSaleId }: PaymentFormProps) {
   const selectedSale = sales.find(s => s.id === initialSaleId);
 
   const form = useForm<PaymentFormValues>({
-    resolver: zodResolver(paymentSchema),
+    resolver: zodResolver(paymentSchema) as any,
     defaultValues: {
       sale_id: initialSaleId ?? "",
       customer_id: selectedSale?.customer_id ?? "",
@@ -72,6 +72,7 @@ export function PaymentForm({ sales, initialSaleId }: PaymentFormProps) {
     () => sales.find((s) => s.id === currentSaleId),
     [sales, currentSaleId]
   );
+  const uploadRecordId = String(activeSale?.id ?? currentSaleId ?? "draft-payment");
   const saleTotal = Number(activeSale?.total_sale_amount ?? 0);
   const salePaid = Number(activeSale?.amount_paid ?? 0);
   const saleRemaining = Math.max(0, saleTotal - salePaid);
@@ -337,7 +338,7 @@ export function PaymentForm({ sales, initialSaleId }: PaymentFormProps) {
                   <FormControl>
                     <ReceiptUpload
                       folder="payments"
-                      recordId={draftId}
+                      recordId={uploadRecordId}
                       value={field.value}
                       onChange={field.onChange}
                     />

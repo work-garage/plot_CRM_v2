@@ -138,7 +138,7 @@ export function EmiModal({ open, onOpenChange }: EmiModalProps) {
 											<TableCell>
 												{sale.sold_by_admin ? (
 													<Badge variant="outline" className="text-xs">
-														Admin
+														Admin (Direct)
 													</Badge>
 												) : (
 													<span className="text-sm">{sale.advisors?.name ?? "—"}</span>
@@ -190,7 +190,7 @@ export function EmiModal({ open, onOpenChange }: EmiModalProps) {
 																<div>Customer: {sale.customers?.name ?? "—"}</div>
 																<div>Phone: {sale.customers?.phone ?? "—"}</div>
 																<div>Plot: {sale.plots?.plot_number ?? "—"} ({sale.plots?.projects?.name ?? "—"})</div>
-																<div>Sold by: {sale.sold_by_admin ? "Admin" : sale.advisors?.name ?? "—"}</div>
+																<div>Sold by: {sale.sold_by_admin ? "Admin (Direct)" : sale.advisors?.name ?? "—"}</div>
 																<div>Monthly EMI: {formatCurrency(sale.monthly_emi)} (Day {sale.emi_day})</div>
 																<div>Next follow-up: {sale.next_emi_due ? formatDate(sale.next_emi_due) : "—"}</div>
 															</div>

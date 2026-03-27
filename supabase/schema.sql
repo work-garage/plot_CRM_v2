@@ -132,20 +132,24 @@ CREATE TABLE plot_sales (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   plot_id UUID NOT NULL REFERENCES plots(id),
   customer_id UUID NOT NULL REFERENCES customers(id),
-  advisor_id UUID NOT NULL REFERENCES advisors(id),
+  advisor_id UUID REFERENCES advisors(id),
   sale_phase sale_phase NOT NULL,
   token_date DATE,
   agreement_date DATE,
-  total_sale_amount DECIMAL(12,2) NOT NULL,
-  down_payment DECIMAL(12,2) DEFAULT 0,
-  monthly_emi DECIMAL(12,2),
+  total_sale_amount DECIMAL(12,2) NOT NULL CHECK (total_sale_amount > 0),
+  down_payment DECIMAL(12,2) DEFAULT 0 CHECK (down_payment >= 0),
+  monthly_emi DECIMAL(12,2) CHECK (monthly_emi IS NULL OR monthly_emi >= 0),
   emi_day INT CHECK (emi_day BETWEEN 1 AND 31), -- which day of month
   amount_paid DECIMAL(12,2) DEFAULT 0,          -- sum updated via trigger
   remaining_amount DECIMAL(12,2),               -- updated via trigger
   is_cancelled BOOLEAN DEFAULT false,
+  followup_date DATE,
+  receipt_path TEXT,
+  sold_by_admin BOOLEAN DEFAULT false,
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
+  CHECK (down_payment <= total_sale_amount),
   UNIQUE(plot_id)  -- one plot = one sale at a time
 );
 

@@ -88,7 +88,9 @@ export function SalesList({
 													<p className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">
 														Advisor
 													</p>
-													<p className="text-sm font-semibold">{sale.advisors?.name}</p>
+													<p className="text-sm font-semibold">
+														{sale.sold_by_admin ? "Admin (Direct)" : sale.advisors?.name ?? "—"}
+													</p>
 												</div>
 											</div>
 										</div>

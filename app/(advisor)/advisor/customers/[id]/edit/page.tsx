@@ -23,7 +23,7 @@ export default async function AdvisorEditCustomerPage({
 
 	const { data: advisor } = await supabase
 		.from("advisors")
-		.select("id, name, code")
+		.select("id, name, code, phone")
 		.eq("id", advisorId)
 		.single();
 

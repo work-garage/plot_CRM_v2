@@ -45,7 +45,7 @@ export function AddSectionsModal({
 			key: "commissions", 
 			label: "Advisor Commissions", 
 			icon: Banknote, 
-			description: "Calculate and track channel partner commissions." 
+			description: "Calculate and track channel advisor commissions." 
 		},
 		{ 
 			key: "expenses", 

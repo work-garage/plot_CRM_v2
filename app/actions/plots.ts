@@ -207,6 +207,7 @@ export type PlotWithSaleInfo = {
 		id: string;
 		customer_name: string;
 		advisor_name: string;
+		sold_by_admin?: boolean;
 		total_sale_amount: number;
 		amount_paid: number;
 		remaining_amount: number;
@@ -257,8 +258,9 @@ export async function getPlotsByProject(
       token_date,
       agreement_date,
       monthly_emi,
+      sold_by_admin,
       customers!inner(name),
-      advisors!inner(name)
+      advisors(name)
     `
 		)
 		.in("plot_id", plotIds)
@@ -270,7 +272,8 @@ export async function getPlotsByProject(
 		salesMap.set(s.plot_id, {
 			id: s.id,
 			customer_name: s.customers?.name ?? "—",
-			advisor_name: s.advisors?.name ?? "—",
+			advisor_name: s.sold_by_admin ? "Admin (Direct)" : s.advisors?.name ?? "—",
+			sold_by_admin: Boolean(s.sold_by_admin),
 			total_sale_amount: Number(s.total_sale_amount),
 			amount_paid: Number(s.amount_paid ?? 0),
 			remaining_amount: Number(s.remaining_amount ?? 0),
@@ -326,8 +329,9 @@ export async function getPlotWithPayments(
       token_date,
       agreement_date,
       monthly_emi,
+      sold_by_admin,
       customers!inner(name),
-      advisors!inner(name)
+      advisors(name)
     `
 		)
 		.eq("plot_id", plotId)
@@ -342,7 +346,8 @@ export async function getPlotWithPayments(
 		sale = {
 			id: s.id,
 			customer_name: s.customers?.name ?? "—",
-			advisor_name: s.advisors?.name ?? "—",
+			advisor_name: s.sold_by_admin ? "Admin (Direct)" : s.advisors?.name ?? "—",
+			sold_by_admin: Boolean(s.sold_by_admin),
 			total_sale_amount: Number(s.total_sale_amount),
 			amount_paid: Number(s.amount_paid ?? 0),
 			remaining_amount: Number(s.remaining_amount ?? 0),

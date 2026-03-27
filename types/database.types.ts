@@ -50,6 +50,8 @@ export type Customer = {
   id: string;
   name: string;
   phone: string;
+  email?: string | null;
+  city?: string;
   alternate_phone?: string;
   address?: string;
   birth_date?: string;
@@ -65,7 +67,8 @@ export type PlotSale = {
   id: string;
   plot_id: string;
   customer_id: string;
-  advisor_id: string;
+  advisor_id?: string | null;
+  sold_by_admin?: boolean;
   sale_phase: 'token' | 'agreement' | 'registry' | 'full_payment';
   token_date?: string;
   agreement_date?: string;

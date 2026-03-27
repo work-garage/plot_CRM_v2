@@ -55,7 +55,7 @@ export function ProjectForm({ mode, initialData }: ProjectFormProps) {
 	const [statusText, setStatusText] = useState("");
 
 	const form = useForm<ProjectFormValues>({
-		resolver: zodResolver(projectSchema),
+		resolver: zodResolver(projectSchema) as any,
 		defaultValues: {
 			name: initialData?.name ?? "",
 			location: initialData?.location ?? "",
